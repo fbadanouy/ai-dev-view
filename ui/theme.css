@@ -1,0 +1,438 @@
+/*  ai-dev-view — theme tokens.
+ *
+ *  A theme is one block of CSS variables. The active theme is chosen by the
+ *  data-theme attribute on <html>; :root is the default theme.
+ *
+ *  To add a theme: copy the :root block into [data-theme='yourname'] { ... },
+ *  change the values, then set <html data-theme="yourname"> (or
+ *  localStorage.theme = 'yourname' — index.html applies it on load).
+ */
+
+/*  default: solarized grey — solarized accents on a neutral charcoal base.
+ *  Accent hues are Ethan Schoonover's solarized palette, lightened just
+ *  enough to clear WCAG AA (4.5:1) on --bg where the originals fell short. */
+:root {
+  /* ── chrome ─────────────────────────────────────────── */
+  --bg:          #16191b;
+  --surface:     #1d2123;
+  --surface-2:   #252a2d;
+  --accent:      #268bd2;   /* active tab, highlights (solarized blue) */
+  --brand:       #b58900;   /* header wordmark (solarized yellow) */
+  --brand-dim:   #9a8224;
+  --text-dim:    #93a1a1;   /* timestamps, small labels (solarized base1) */
+  --text-base:   #cbd5e1;   /* primary text */
+  --text-muted:  #94a3b8;   /* secondary text */
+  --border:      #1e293b;   /* card/panel borders, dividers */
+  --border-strong: #334155; /* hovered borders */
+  --inset:       #0f172a;   /* inputs, chips, code wells */
+  --accent-glow: rgba(38, 139, 210, 0.18);   /* selected-card outer glow */
+
+  /* ── providers ──────────────────────────────────────── */
+  --provider-kiro:   #787cc9;   /* solarized violet */
+  --provider-claude: #d26437;   /* solarized orange */
+  --provider-codex:  #88a7b8;   /* slate-blue grey — distinct from --text-dim */
+
+  /* ── stat bars ──────────────────────────────────────── */
+  --stat-msg:         #2aa198;   /* cyan */
+  --stat-tools:       #787cc9;   /* violet */
+  --stat-cycles:      #b58900;   /* yellow */
+  --stat-req:         #d26437;   /* orange */
+  --stat-ctx:         #859900;   /* green */
+  --stat-err:         #e25350;   /* red */
+  --stat-in:          #268bd2;   /* blue */
+  --stat-out:         #859900;   /* green */
+  --stat-cache:       #b58900;   /* yellow */
+  --stat-cache-write: #d26437;   /* orange */
+  --stat-total:       #839496;   /* base0 */
+  --stat-reasoning:   #d95294;   /* magenta */
+
+  /* ── charts ─────────────────────────────────────────── */
+  --chart-line:     #b58900;   /* context-fill line in turns graph */
+  --chart-ok:       #859900;
+  --chart-warn:     #b58900;
+  --chart-bad:      #e25350;
+  --chart-selected: #268bd2;
+
+  /* tool-breakdown segments, cycled in order */
+  --palette-1: #268bd2;
+  --palette-2: #787cc9;
+  --palette-3: #2aa198;
+  --palette-4: #859900;
+  --palette-5: #d26437;
+  --palette-6: #e25350;
+  --palette-7: #d95294;
+  --palette-8: #b58900;
+}
+
+/*  Example second theme — uncomment, tweak, and set
+ *  localStorage.theme = 'mono' in the devtools console to try it.
+ *
+ *  [data-theme='mono'] {
+ *    --accent: #e2e8f0;
+ *    --brand:  #94a3b8;
+ *    --provider-kiro:   #cbd5e1;
+ *    --provider-claude: #94a3b8;
+ *    --provider-codex:  #64748b;
+ *  }
+ */
+
+/* theme: cyber-hearth  ·  by Gemini  ·  Warm, tactile, vintage CRT mainframe but modernized */
+[data-theme='cyber-hearth'] {
+
+  /* ── chrome ── */
+  --bg:          #120f0e;
+  --surface:     #1a1614;
+  --surface-2:   #241e1c;
+  --accent:      #ffb000;
+  --accent-glow: rgba(255, 176, 0, 0.15);
+  --brand:       #ffb000;
+  --brand-dim:   #996a00;
+
+  /* ── providers ── */
+  --provider-kiro:   #c687ff;
+  --provider-claude: #ff8f40;
+  --provider-codex:  #8cb4c6;   /* Nickel Silver — metallic, clearly not disabled text */
+
+  /* ── stat bars ── */
+  --stat-msg:         #4db8ff;
+  --stat-tools:       #c687ff;
+  --stat-cycles:      #ffb000;
+  --stat-req:         #ff8f40;
+  --stat-ctx:         #4ade80;
+  --stat-err:         #ff5d5d;
+  --stat-in:          #818cf8;
+  --stat-out:         #34d399;
+  --stat-cache:       #facc15;
+  --stat-cache-write: #f97316;
+  --stat-total:       #a39d98;   /* Warm Pewter */
+  --stat-reasoning:   #e879f9;
+
+  /* ── charts ── */
+  --chart-line:     #ffb000;
+  --chart-ok:       #4ade80;
+  --chart-warn:     #ffb000;
+  --chart-bad:      #ff5d5d;
+  --chart-selected: #818cf8;
+
+  /* ── tool-breakdown segments ── */
+  --palette-1: #ffb000;   /* Cyber Amber */
+  --palette-2: #c687ff;   /* Vibrant Violet */
+  --palette-3: #4db8ff;   /* Crisp Cyan */
+  --palette-4: #4ade80;   /* Emerald */
+  --palette-5: #ff8f40;   /* Forge Orange */
+  --palette-6: #ff5d5d;   /* Crimson */
+  --palette-7: #e879f9;   /* Fuchsia */
+  --palette-8: #818cf8;   /* Indigo */
+}
+
+/* theme: dusk-protocol  ·  by Gemini  ·  Coding on a balcony at 9PM, dreamy and calm */
+[data-theme='dusk-protocol'] {
+
+  /* ── chrome ── */
+  --bg:          #0d111a;
+  --surface:     #151b29;
+  --surface-2:   #1e2638;
+  --accent:      #ff8a7a;
+  --accent-glow: rgba(255, 138, 122, 0.15);
+  --brand:       #ff8a7a;
+  --brand-dim:   #995249;
+
+  /* ── providers ── */
+  --provider-kiro:   #b098d1;   /* Dusty Lavender */
+  --provider-claude: #e89a9b;   /* Muted Coral */
+  --provider-codex:  #a2b6c6;   /* Gunmetal Blue — clearly distinguished from text */
+
+  /* ── stat bars ── */
+  --stat-msg:         #78c4d4;
+  --stat-tools:       #b098d1;
+  --stat-cycles:      #f6d887;
+  --stat-req:         #e89a9b;
+  --stat-ctx:         #85dcb4;
+  --stat-err:         #f47c7c;
+  --stat-in:          #8fa8f6;
+  --stat-out:         #85dcb4;
+  --stat-cache:       #f6d887;
+  --stat-cache-write: #e89a9b;
+  --stat-total:       #8ba3b5;   /* Dusky Teal */
+  --stat-reasoning:   #d498d1;
+
+  /* ── charts ── */
+  --chart-line:     #ff8a7a;
+  --chart-ok:       #85dcb4;
+  --chart-warn:     #f6d887;
+  --chart-bad:      #f47c7c;
+  --chart-selected: #8fa8f6;
+
+  /* ── tool-breakdown segments ── */
+  --palette-1: #ff8a7a;   /* Coral */
+  --palette-2: #b098d1;   /* Lavender */
+  --palette-3: #78c4d4;   /* Pastel Cyan */
+  --palette-4: #85dcb4;   /* Muted Mint */
+  --palette-5: #e89a9b;   /* Dusky Pink */
+  --palette-6: #f47c7c;   /* Soft Red */
+  --palette-7: #d498d1;   /* Muted Magenta */
+  --palette-8: #8fa8f6;   /* Periwinkle */
+}
+
+/* theme: parchment-sepia  ·  by Gemini  ·  Nostalgic and warm, like coding in an old library on a rainy day. */
+[data-theme='parchment-sepia'] {
+
+  /* ── chrome ── */
+  --bg:          #fdf6e3;   /* Warm parchment off-white */
+  --surface:     #f5efdc;   /* Slightly darker cream */
+  --surface-2:   #eee8d5;   /* Muted beige panels */
+  --accent:      #b58900;   /* Rich Goldenrod amber */
+  --accent-glow: rgba(181, 137, 0, 0.20);
+  --brand:       #b58900;   /* Rich Goldenrod wordmark */
+  --brand-dim:   #a57a00;
+
+  /* ── greys (light) ── */
+  --text-base:   #586e75;   /* Dark sepia/brown primary text */
+  --text-muted:  #839496;   /* Muted grey-brown text */
+  --text-dim:    #657b83;
+  --border:      #e4ddc6;
+  --border-strong: #c9c0a4;
+  --inset:       #f5efdc;
+
+  /* ── providers — optimized for light background ── */
+  --provider-kiro:   #6c71c4;   /* Dusty Violet */
+  --provider-claude: #cb4b16;   /* Burnt Terracotta orange */
+  --provider-codex:  #657b83;   /* Deep slate-grey */
+
+  /* ── stat bars ── */
+  --stat-msg:         #268bd2;   /* Sepia Blue */
+  --stat-tools:       #6c71c4;   /* Violet */
+  --stat-cycles:      #b58900;   /* Goldenrod */
+  --stat-req:         #cb4b16;   /* Terracotta */
+  --stat-ctx:         #859900;   /* Moss Green */
+  --stat-err:         #dc322f;   /* Rust Red */
+  --stat-in:          #6c71c4;   /* Violet */
+  --stat-out:         #859900;   /* Moss Green */
+  --stat-cache:       #a57a00;   /* Darker Amber */
+  --stat-cache-write: #cb4b16;   /* Terracotta */
+  --stat-total:       #586e75;   /* Dark Sepia */
+  --stat-reasoning:   #d33682;   /* Deep Magenta */
+
+  /* ── charts ── */
+  --chart-line:     #b58900;
+  --chart-ok:       #859900;
+  --chart-warn:     #b58900;
+  --chart-bad:      #dc322f;
+  --chart-selected: #268bd2;
+
+  /* ── tool-breakdown segments ── */
+  --palette-1: #b58900;   /* Goldenrod */
+  --palette-2: #6c71c4;   /* Violet */
+  --palette-3: #268bd2;   /* Sepia Blue */
+  --palette-4: #859900;   /* Moss Green */
+  --palette-5: #dc322f;   /* Rust Red */
+  --palette-6: #cb4b16;   /* Terracotta Orange */
+  --palette-7: #d33682;   /* Deep Magenta */
+  --palette-8: #2aa198;   /* Cyan Teal */
+}
+
+/* theme: nordic-daylight  ·  by Gemini  ·  Clean, focused, and fresh, like programming on a covered porch in the soft daylight. */
+[data-theme='nordic-daylight'] {
+
+  /* ── chrome ── */
+  --bg:          #eceff4;   /* Very pale grey-white */
+  --surface:     #e5e9f0;   /* Soft grey */
+  --surface-2:   #d8dee9;   /* Muted grey panels */
+  --accent:      #88c0d0;   /* Frost blue */
+  --accent-glow: rgba(94, 129, 172, 0.25);
+  --brand:       #ebcb8b;   /* Soft pale gold */
+  --brand-dim:   #d0a75c;
+
+  /* ── greys (light) ── */
+  --text-base:   #2e3440;   /* Deep blue-grey primary text */
+  --text-muted:  #4c566a;   /* Muted grey text */
+  --text-dim:    #616e88;
+  --border:      #d8dee9;
+  --border-strong: #aebacf;
+  --inset:       #e5e9f0;
+
+  /* ── providers — optimized for Nord light ── */
+  --provider-kiro:   #b48ead;   /* Muted Lavender */
+  --provider-claude: #d08770;   /* Soft Peach orange */
+  --provider-codex:  #434c5e;   /* Dark Steel-grey */
+
+  /* ── stat bars ── */
+  --stat-msg:         #81a1c1;   /* Soft Blue */
+  --stat-tools:       #b48ead;   /* Muted Lavender */
+  --stat-cycles:      #ebcb8b;   /* Pale Gold */
+  --stat-req:         #d08770;   /* Soft Peach */
+  --stat-ctx:         #a3be8c;   /* Soft Teal-Green */
+  --stat-err:         #bf616a;   /* Faded Red */
+  --stat-in:          #81a1c1;   /* Soft Blue */
+  --stat-out:         #a3be8c;   /* Soft Teal-Green */
+  --stat-cache:       #ebcb8b;   /* Pale Gold */
+  --stat-cache-write: #d08770;   /* Soft Peach */
+  --stat-total:       #4c566a;   /* Muted Grey */
+  --stat-reasoning:   #b48ead;   /* Muted Lavender */
+
+  /* ── charts ── */
+  --chart-line:     #ebcb8b;
+  --chart-ok:       #a3be8c;
+  --chart-warn:     #ebcb8b;
+  --chart-bad:      #bf616a;
+  --chart-selected: #81a1c1;
+
+  /* ── tool-breakdown segments ── */
+  --palette-1: #88c0d0;   /* Frost Blue */
+  --palette-2: #b48ead;   /* Muted Lavender */
+  --palette-3: #a3be8c;   /* Soft Teal-Green */
+  --palette-4: #ebcb8b;   /* Pale Gold */
+  --palette-5: #bf616a;   /* Faded Red */
+  --palette-6: #d08770;   /* Soft Peach Orange */
+  --palette-7: #81a1c1;   /* Soft Blue */
+  --palette-8: #5e81ac;   /* Muted Deep Blue */
+}
+
+/* theme: hollywood-os  ·  by Gemini  ·  *furiously mashes keyboard* "I've bypassed the mainframe." */
+[data-theme='hollywood-os'] {
+
+  /* ── chrome ── */
+  --bg:          #000000;   /* The void */
+  --surface:     #051105;   /* Barely visible green tint */
+  --surface-2:   #0a220a;   /* Slightly more green tint */
+  --accent:      #00ff00;   /* NEON GREEN */
+  --accent-glow: rgba(0, 255, 0, 0.20);
+  --brand:       #00ff00;   /* MORE NEON GREEN */
+  --brand-dim:   #008800;   /* Slightly quieter green */
+
+  /* ── providers ── */
+  --provider-kiro:   #00ffaa;   /* Cyan-ish green */
+  --provider-claude: #aaff00;   /* Yellow-ish green */
+  --provider-codex:  #00ccff;   /* Actually blue (for variety) */
+
+  /* ── stat bars ── */
+  --stat-msg:         #00ffaa;
+  --stat-tools:       #00ff00;
+  --stat-cycles:      #aaff00;
+  --stat-req:         #00cc00;
+  --stat-ctx:         #00ff00;
+  --stat-err:         #ff0000;   /* ACCESS DENIED RED */
+  --stat-in:          #00ffaa;
+  --stat-out:         #00ff00;
+  --stat-cache:       #aaff00;
+  --stat-cache-write: #00cc00;
+  --stat-total:       #008800;
+  --stat-reasoning:   #00ccff;   /* "Uplink" Blue */
+
+  /* ── charts ── */
+  --chart-line:     #00ff00;
+  --chart-ok:       #00ff00;
+  --chart-warn:     #aaff00;
+  --chart-bad:      #ff0000;
+  --chart-selected: #00ffaa;
+
+  /* ── tool-breakdown segments ── */
+  --palette-1: #00ff00;   /* Neon Green */
+  --palette-2: #00ffaa;   /* Cyan-Green */
+  --palette-3: #aaff00;   /* Yellow-Green */
+  --palette-4: #00cc00;   /* Medium Green */
+  --palette-5: #00ccff;   /* Neon Blue */
+  --palette-6: #ff0000;   /* Red (For contrast) */
+  --palette-7: #008800;   /* Dark Green */
+  --palette-8: #ffffff;   /* Pure White (Because the hacking montage is ending) */
+}
+
+/* theme: acid-moss  ·  by Gemini  ·  Organic, focused, like hacking in a rainy greenhouse. */
+/* NOTE: delivery was truncated after --stat-total; reasoning/charts/palette below are
+   interim fills derived from the delivered hues — replace when the designer resends. */
+[data-theme='acid-moss'] {
+
+  /* ── chrome ── */
+  --bg:          #181916;   /* Deep forest charcoal */
+  --surface:     #21231e;   /* Earthy dark cards */
+  --surface-2:   #2a2c26;   /* Raised mossy panels */
+  --accent:      #8fb38b;   /* Soft Matcha Green */
+  --accent-glow: rgba(143, 179, 139, 0.18);
+  --brand:       #8fb38b;   /* Matcha wordmark */
+  --brand-dim:   #5b7558;   /* Dimmed matcha */
+
+  /* ── providers ── */
+  --provider-kiro:   #9c6f84;   /* Muted Berry */
+  --provider-claude: #cc7a6b;   /* Faded Terracotta */
+  --provider-codex:  #7da398;   /* Sage Blue-Green (Pop!) */
+
+  /* ── stat bars ── */
+  --stat-msg:         #7da398;   /* Sage Blue-Green */
+  --stat-tools:       #9c6f84;   /* Muted Berry */
+  --stat-cycles:      #d4c9b4;   /* Muted Sand */
+  --stat-req:         #cc7a6b;   /* Terracotta */
+  --stat-ctx:         #8fb38b;   /* Matcha Green */
+  --stat-err:         #d96c6c;   /* Soft Rose Red */
+  --stat-in:          #8e9cb0;   /* Slate Blue */
+  --stat-out:         #8fb38b;   /* Matcha Green */
+  --stat-cache:       #d4c9b4;   /* Muted Sand */
+  --stat-cache-write: #cc7a6b;   /* Terracotta */
+  --stat-total:       #9aa899;   /* Muted Moss */
+  --stat-reasoning:   #9c6f84;   /* interim: Muted Berry */
+
+  /* ── charts (interim — derived from delivered hues) ── */
+  --chart-line:     #8fb38b;
+  --chart-ok:       #8fb38b;
+  --chart-warn:     #d4c9b4;
+  --chart-bad:      #d96c6c;
+  --chart-selected: #8e9cb0;
+
+  /* ── tool-breakdown segments (interim — delivered hues, cycled) ── */
+  --palette-1: #8fb38b;   /* Matcha */
+  --palette-2: #9c6f84;   /* Berry */
+  --palette-3: #7da398;   /* Sage */
+  --palette-4: #d4c9b4;   /* Sand */
+  --palette-5: #cc7a6b;   /* Terracotta */
+  --palette-6: #d96c6c;   /* Rose */
+  --palette-7: #8e9cb0;   /* Slate Blue */
+  --palette-8: #9aa899;   /* Moss */
+}
+
+/* theme: sakura-cli  ·  by Gemini  ·  Lo-fi chill beats to relax and compile to. */
+[data-theme='sakura-cli'] {
+
+  /* ── chrome ── */
+  --bg:          #15101a;   /* Deep plum night sky */
+  --surface:     #1d1624;   /* Dark purple-tinted cards */
+  --surface-2:   #261d30;   /* Raised panels */
+  --accent:      #ff9eb5;   /* Sakura Pink */
+  --accent-glow: rgba(255, 158, 181, 0.18);
+  --brand:       #ff9eb5;   /* Sakura Pink wordmark */
+  --brand-dim:   #a35c70;   /* Dimmed pink */
+
+  /* ── providers ── */
+  --provider-kiro:   #d38cfa;   /* Neon Lilac */
+  --provider-claude: #ffaf87;   /* Pastel Peach */
+  --provider-codex:  #a6b8d4;   /* Soft Periwinkle Blue */
+
+  /* ── stat bars ── */
+  --stat-msg:         #89cff0;   /* Baby Blue */
+  --stat-tools:       #d38cfa;   /* Neon Lilac */
+  --stat-cycles:      #ffcf87;   /* Warm Pastel Yellow */
+  --stat-req:         #ffaf87;   /* Pastel Peach */
+  --stat-ctx:         #9ee5af;   /* Minty Green */
+  --stat-err:         #ff5c77;   /* Hot Pink-Red */
+  --stat-in:          #a6b8d4;   /* Periwinkle */
+  --stat-out:         #9ee5af;   /* Minty Green */
+  --stat-cache:       #ffcf87;   /* Warm Yellow */
+  --stat-cache-write: #ffaf87;   /* Pastel Peach */
+  --stat-total:       #c8b6d4;   /* Muted Mauve Grey */
+  --stat-reasoning:   #f08ced;   /* Bubblegum Pink */
+
+  /* ── charts ── */
+  --chart-line:     #ff9eb5;   /* Sakura Pink */
+  --chart-ok:       #9ee5af;   /* Minty Green */
+  --chart-warn:     #ffcf87;   /* Pastel Yellow */
+  --chart-bad:      #ff5c77;   /* Hot Pink-Red */
+  --chart-selected: #89cff0;   /* Baby Blue */
+
+  /* ── tool-breakdown segments ── */
+  --palette-1: #ff9eb5;   /* Sakura Pink */
+  --palette-2: #d38cfa;   /* Lilac */
+  --palette-3: #89cff0;   /* Baby Blue */
+  --palette-4: #9ee5af;   /* Mint */
+  --palette-5: #ffcf87;   /* Pastel Yellow */
+  --palette-6: #ffaf87;   /* Peach */
+  --palette-7: #ff5c77;   /* Hot Pink */
+  --palette-8: #a6b8d4;   /* Periwinkle */
+}

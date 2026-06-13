@@ -1,0 +1,7 @@
+ai-dev-view.db
+*.db
+__pycache__/
+*.pyc
+.DS_Store
+config.json
+.claude/settings.local.json

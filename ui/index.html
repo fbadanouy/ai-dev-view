@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ai-dev-view</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+
+  <!-- Theme tokens (CSS variables) — see theme.css to add themes -->
+  <link rel="stylesheet" href="./theme.css">
+  <script>
+    // Apply saved theme before first paint; a future theme selector just
+    // writes localStorage.theme and sets this attribute.
+    const theme = localStorage.getItem('theme')
+    if (theme) document.documentElement.dataset.theme = theme
+  </script>
+
+  <!-- Tailwind Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface:  'var(--surface)',
+            surface2: 'var(--surface-2)',
+            gold:     'var(--brand)',
+            'gold-dim': 'var(--brand-dim)',
+            accent:   'var(--accent)',
+            brand:    'var(--brand)',
+            'provider-kiro':   'var(--provider-kiro)',
+            'provider-claude': 'var(--provider-claude)',
+            'provider-codex':  'var(--provider-codex)',
+            dim:      'var(--text-dim)',
+            fg:       'var(--text-base)',
+            muted:    'var(--text-muted)',
+            edge:     'var(--border)',
+            'edge-strong': 'var(--border-strong)',
+            inset:    'var(--inset)',
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Shoelace UI via CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.19.1/cdn/themes/dark.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.19.1/cdn/shoelace-autoloader.js"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { background: var(--bg); }
+  </style>
+</head>
+<body class="sl-theme-dark min-h-screen text-fg">
+
+  <app-shell></app-shell>
+
+  <script type="module" src="./components/layout/app-shell.js"></script>
+
+  <!--
+    To run:
+      python3 server.py
+      Open: http://localhost:8765
+  -->
+</body>
+</html>
