@@ -1,8 +1,14 @@
 # ai-dev-view
 
-![App Demo](https://raw.githubusercontent.com/fbadanouy/ai-dev-view/master/ai-dev-view.gif)
-
 > **Local dashboard for AI coding sessions.** Reads the logs Kiro CLI, Claude Code, and Codex CLI already write on your machine. No signup, no cloud, no invented metrics.
+
+![App Demo](https://raw.githubusercontent.com/fbadanouy/ai-dev-view/master/ai-dev-view.gif)
+ 
+## What it does
+
+Your coding agents already log everything locally. ai-dev-view turns those logs into something you can actually browse: sessions across providers, ticket groupings, skill usage, tool-call stats, and per-model activity. When a session is worth continuing, copy the resume command and go.
+
+Everything stays on your machine. The app **only reads** provider data dirs. It never writes to `~/.kiro`, `~/.claude`, or `~/.codex`.
 
 Python 3.9+. Stdlib only. Clone and run.
 
@@ -17,11 +23,6 @@ Re-ingest anytime with `python3 ingest.py` or **Sync** in the UI (`POST /api/ing
 
 ---
 
-## What it does
-
-Your coding agents already log everything locally. ai-dev-view turns those logs into something you can actually browse: sessions across providers, ticket groupings, skill usage, tool-call stats, and per-model activity. When a session is worth continuing, copy the resume command and go.
-
-Everything stays on your machine. The app **only reads** provider data dirs. It never writes to `~/.kiro`, `~/.claude`, or `~/.codex`.
 
 | Tab | What you get |
 |---|---|
