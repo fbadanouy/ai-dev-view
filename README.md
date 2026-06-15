@@ -21,26 +21,19 @@ skipped.
 
 ## What you get
 
+- **Projects** — every project you've worked in, with its sessions and the AI
+  config (skills, agents, MCPs) defined inside it.
 - **Sessions** — every session across providers, with per-provider metrics,
   conversation timeline, and a copy-paste resume command.
 - **Tickets** — sessions grouped by the JIRA-style ticket they mention
   (the prefix you set in setup).
+- **Skills** — which skills you actually invoke, with failure analytics.
 - **Tool Calls** — which tools you actually use, with failure analytics.
 - **Models** — usage broken down by the models that ran your sessions.
-- **Analytics** — aggregate trends across the above.
-
-### Coming soon
-
-These tabs are temporarily hidden while we add project-level discovery. Today
-the providers only scan your home dir (`~/.kiro`, `~/.claude`, `~/.codex`), so
-anything defined inside a project (`<repo>/.kiro`, `<repo>/.claude`, …) or in
-Claude plugins is missed — and we'd rather show nothing than show a partial
-list. Back once discovery scans project dirs and the Claude plugin cache:
-
-- **Skills** — which skills you actually invoke, with failure analytics.
 - **Agents** — the custom agents each provider has configured.
-- **Kiro** — your Kiro steering and skill files, browsable.
 - **MCPs** — the MCP servers wired into each provider.
+- **Kiro** — your Kiro steering and skill files, browsable.
+- **Analytics** — aggregate trends across the above.
 
 ## Privacy
 

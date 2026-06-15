@@ -25,6 +25,14 @@ COMMAND_LEN = 300   # mirror kiro.py
 _SKILL_RE  = re.compile(r'/([a-z][a-z0-9-]+)')
 _TICKET_RE = config.ticket_re()
 
+# Claude Code records an explicit slash-command invocation as a harness block
+# <command-name>/foo</command-name> (plugin skills come through namespaced as
+# /plugin:skill). This is the canonical "the user invoked /skill" signal — the
+# free-text _SKILL_RE never sees it because _is_real_prompt strips harness blocks.
+# We take the last ':'-segment so /frontend-design:frontend-design → frontend-design;
+# non-skill built-ins (/compact, /model, …) fall out at the actual-skill filter.
+_COMMAND_NAME_RE = re.compile(r'<command-name>\s*/?([a-z0-9:_-]+)\s*</command-name>', re.I)
+
 # Harness-injected blocks inside user messages (system reminders, ! command
 # output, slash-command groups). Their content is data, not the user's words —
 # stripped before ticket matching so pass-through IDs don't count as mentions.
@@ -37,8 +45,9 @@ _HARNESS_RE = re.compile(
 
 # ── Dimensions ───────────────────────────────────────────────────
 
-def read_skills():
-    skills_dir = CLAUDE / 'skills'
+def read_skills(base=None):
+    base = base or CLAUDE
+    skills_dir = base / 'skills'
     if not skills_dir.exists():
         return []
     out = []
@@ -58,14 +67,62 @@ def read_skills():
     return out
 
 
-def read_mcps():
-    cfg_path = HOME / '.claude.json'
-    if not cfg_path.exists():
-        return []
-    try:
-        servers = json.loads(cfg_path.read_text()).get('mcpServers', {})
-    except Exception:
-        return []
+def read_plugin_skills():
+    """Skills from the home Claude plugin cache (~/.claude/plugins/cache)."""
+    cache = CLAUDE / 'plugins' / 'cache'
+    out = []
+    for skill_file in sorted(cache.glob('*/*/*/skills/*/SKILL.md')):
+        try:
+            description = _parse_frontmatter(skill_file.read_text()).get('description', '')
+        except Exception:
+            description = ''
+        out.append({'name': skill_file.parent.name, 'description': description,
+                    'path': str(skill_file), 'created_at': None, 'provider': 'claude'})
+    return out
+
+
+def read_plugin_agents():
+    """Agents from the home Claude plugin cache (~/.claude/plugins/cache)."""
+    cache = CLAUDE / 'plugins' / 'cache'
+    out = []
+    for af in sorted(cache.glob('*/*/*/agents/*.md')):
+        try:
+            text = af.read_text()
+            fm = _parse_frontmatter(text)
+        except Exception:
+            continue
+        out.append({
+            'name':          af.stem,
+            'model':         fm.get('model'),
+            'tools':         None,
+            'allowed_tools': None,
+            'resources':     None,
+            'hooks':         None,
+            'description':   fm.get('description'),
+            'prompt_path':   str(af),
+            'declares':      [],
+            'provider':      'claude',
+        })
+    return out
+
+
+def read_mcps(project_root=None):
+    if project_root is None:
+        cfg_path = HOME / '.claude.json'
+        if not cfg_path.exists():
+            return []
+        try:
+            servers = json.loads(cfg_path.read_text()).get('mcpServers', {})
+        except Exception:
+            return []
+    else:
+        cfg_path = project_root / '.mcp.json'
+        if not cfg_path.exists():
+            return []
+        try:
+            servers = json.loads(cfg_path.read_text()).get('mcpServers', {})
+        except Exception:
+            return []
     return [{
         'server':      name,
         'tool_prefix': f'mcp__{name}__',
@@ -74,8 +131,9 @@ def read_mcps():
     } for name, cfg in servers.items()]
 
 
-def read_agents():
-    agents_dir = CLAUDE / 'agents'
+def read_agents(base=None):
+    base = base or CLAUDE
+    agents_dir = base / 'agents'
     if not agents_dir.exists():
         return []
     out = []
@@ -413,6 +471,12 @@ def _parse_claude_session(jl):
                     continue  # tool-result-only → not a message
                 if _is_real_prompt(r):
                     for sk in _SKILL_RE.findall(text):
+                        skill_counts[sk] = skill_counts.get(sk, 0) + 1
+                # Explicit slash-command invocations live in <command-name> blocks,
+                # which are stripped from real-prompt text — count them separately.
+                for cmd in _COMMAND_NAME_RE.findall(text):
+                    sk = cmd.lstrip('/').split(':')[-1].lower()
+                    if sk:
                         skill_counts[sk] = skill_counts.get(sk, 0) + 1
                 seq += 1
                 all_messages.append({

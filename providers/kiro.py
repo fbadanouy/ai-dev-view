@@ -44,26 +44,32 @@ def _parse_frontmatter(text):
 
 # ── Dimensions ───────────────────────────────────────────────────
 
-def read_skills():
-    """Skills from ~/.kiro/skills/*/SKILL.md."""
+def read_skills(base=None):
+    """Skills from <base>/skills/*/SKILL.md (defaults to ~/.kiro)."""
+    base = base or KIRO
     out = []
-    for skill_file in sorted(KIRO.glob('skills/*/SKILL.md')):
+    for skill_file in sorted(base.glob('skills/*/SKILL.md')):
         try:
             description = _parse_frontmatter(skill_file.read_text()).get('description', '')
         except Exception:
             description = ''
+        try:
+            created_at = datetime.fromtimestamp(skill_file.stat().st_birthtime).isoformat()
+        except Exception:
+            created_at = None
         out.append({
             'name':        skill_file.parent.name,
             'description': description,
             'path':        str(skill_file),
-            'created_at':  datetime.fromtimestamp(skill_file.stat().st_birthtime).isoformat(),
+            'created_at':  created_at,
         })
     return out
 
 
-def read_mcps():
-    """MCP servers from ~/.kiro/settings/mcp.json."""
-    mcp_path = KIRO / 'settings' / 'mcp.json'
+def read_mcps(base=None):
+    """MCP servers from <base>/settings/mcp.json (defaults to ~/.kiro)."""
+    base = base or KIRO
+    mcp_path = base / 'settings' / 'mcp.json'
     if not mcp_path.exists():
         return []
     try:
@@ -77,10 +83,11 @@ def read_mcps():
     } for name, cfg in servers.items()]
 
 
-def read_agents():
-    """Agents from ~/.kiro/agents/*.json, with their declared tools/resources."""
+def read_agents(base=None):
+    """Agents from <base>/agents/*.json, with their declared tools/resources."""
+    base = base or KIRO
     out = []
-    for af in sorted(KIRO.glob('agents/*.json')):
+    for af in sorted(base.glob('agents/*.json')):
         try:
             data = json.loads(af.read_text())
         except Exception:
@@ -117,13 +124,15 @@ def read_agents():
     return out
 
 
-def scan_files():
-    """Grimoire files: steering / skill / agent docs + ~/AGENTS.md."""
+def scan_files(base=None, project_root=None):
+    """Grimoire files: steering / skill / agent docs + AGENTS.md at root."""
+    base = base or KIRO
+    root_agents = (project_root / 'AGENTS.md') if project_root else (HOME / 'AGENTS.md')
     SCAN = [
-        (str(HOME / 'AGENTS.md'),          'root'),
-        (str(KIRO / 'steering/**/*.md'),   'steering'),
-        (str(KIRO / 'skills/**/SKILL.md'), 'skill'),
-        (str(KIRO / 'agents/*.md'),        'agent'),
+        (str(root_agents),                 'root'),
+        (str(base / 'steering/**/*.md'),   'steering'),
+        (str(base / 'skills/**/SKILL.md'), 'skill'),
+        (str(base / 'agents/*.md'),        'agent'),
     ]
     out = []
     for pattern, group in SCAN:
@@ -131,7 +140,7 @@ def scan_files():
             if group == 'root':
                 name, group_name = os.path.basename(path), None
             elif group == 'steering':
-                rel        = os.path.relpath(path, str(KIRO / 'steering')).replace('.md', '')
+                rel        = os.path.relpath(path, str(base / 'steering')).replace('.md', '')
                 name       = rel
                 group_name = rel.split('/')[0] if '/' in rel else None
             elif group == 'skill':

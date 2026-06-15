@@ -4,8 +4,16 @@
 
 -- ── Dimensions ──────────────────────────────────────────────────
 
+CREATE TABLE IF NOT EXISTS projects (
+    id          TEXT PRIMARY KEY,   -- '~'-abbreviated root path; '' = (no project)
+    name        TEXT NOT NULL,      -- basename(root) or '(no project)'
+    root_path   TEXT,               -- == id for real projects; NULL for ''
+    first_seen  TEXT,               -- min(session.created_at)
+    last_seen   TEXT                -- max(session.updated_at)
+);
+
 CREATE TABLE IF NOT EXISTS agents (
-    name          TEXT PRIMARY KEY,
+    name          TEXT NOT NULL,
     model         TEXT,
     tools         TEXT,           -- JSON array from config
     allowed_tools TEXT,           -- JSON array from config
@@ -13,15 +21,21 @@ CREATE TABLE IF NOT EXISTS agents (
     hooks         TEXT,           -- JSON object from config
     description   TEXT,
     prompt_path   TEXT,
-    provider      TEXT NOT NULL
+    provider      TEXT NOT NULL,
+    scope         TEXT NOT NULL DEFAULT 'user',   -- 'user' | 'plugin' | 'project'
+    project_id    TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (provider, scope, project_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS skills (
-    name        TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
     description TEXT,              -- from SKILL.md frontmatter
     path        TEXT NOT NULL,
     created_at  TEXT,              -- file birth time (ISO 8601)
-    provider    TEXT NOT NULL
+    provider    TEXT NOT NULL,
+    scope       TEXT NOT NULL DEFAULT 'user',   -- 'user' | 'plugin' | 'project'
+    project_id  TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (provider, scope, project_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS models (
@@ -34,10 +48,13 @@ CREATE TABLE IF NOT EXISTS models (
 );
 
 CREATE TABLE IF NOT EXISTS mcps (
-    server      TEXT PRIMARY KEY,
+    server      TEXT NOT NULL,
     tool_prefix TEXT,              -- prefix used in tool call names (e.g. "codegraph_")
     command     TEXT,
-    provider    TEXT NOT NULL
+    provider    TEXT NOT NULL,
+    scope       TEXT NOT NULL DEFAULT 'user',   -- 'user' | 'project'
+    project_id  TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (provider, scope, project_id, server)
 );
 
 CREATE TABLE IF NOT EXISTS tickets (
@@ -49,7 +66,9 @@ CREATE TABLE IF NOT EXISTS files (
     path        TEXT UNIQUE NOT NULL,
     name        TEXT NOT NULL,
     type        TEXT NOT NULL,     -- skill, agent, steering, root
-    group_name  TEXT
+    group_name  TEXT,
+    scope       TEXT NOT NULL DEFAULT 'user',
+    project_id  TEXT NOT NULL DEFAULT ''
 );
 
 -- ── Facts ───────────────────────────────────────────────────────
@@ -73,7 +92,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     tool_error_count        INTEGER DEFAULT 0,  -- count of Error results in ToolResults
     session_created_reason  TEXT,               -- 'subagent', 'new_session', etc. from root field
     provider                TEXT NOT NULL,
-    git_branch              TEXT
+    git_branch              TEXT,
+    project_id              TEXT REFERENCES projects(id)
 );
 
 CREATE TABLE IF NOT EXISTS session_turns (
@@ -225,6 +245,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_agent    ON sessions(agent);
 CREATE INDEX IF NOT EXISTS idx_sessions_model    ON sessions(model);
 CREATE INDEX IF NOT EXISTS idx_sessions_ticket   ON sessions(ticket);
 CREATE INDEX IF NOT EXISTS idx_sessions_updated  ON sessions(updated_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_project  ON sessions(project_id);
 CREATE INDEX IF NOT EXISTS idx_session_turns_sid ON session_turns(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_skills_sk ON session_skills(skill);
 CREATE INDEX IF NOT EXISTS idx_session_mcps_srv  ON session_mcps(mcp_server);
@@ -250,7 +271,8 @@ SELECT
     MAX(s.updated_at)                     AS last_used
 FROM session_skills ss
 JOIN sessions s ON s.id = ss.session_id
-LEFT JOIN skills sk ON sk.name = ss.skill
+LEFT JOIN (SELECT name, MAX(description) AS description FROM skills GROUP BY name) sk
+       ON sk.name = ss.skill
 GROUP BY ss.skill
 ORDER BY sessions_used DESC;
 

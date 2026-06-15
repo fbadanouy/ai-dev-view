@@ -1,5 +1,6 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import './app-nav.js'
+import '../projects/projects-page.js'
 import '../sessions/sessions-page.js'
 import '../tickets/tickets-page.js'
 import '../skills/skills-page.js'
@@ -96,6 +97,7 @@ class AppShell extends LitElement {
         </header>
 
         <main>
+          ${this.page === 'projects'   ? html`<projects-page></projects-page>`     : ''}
           ${this.page === 'sessions'   ? html`<sessions-page></sessions-page>`     : ''}
           ${this.page === 'tickets'    ? html`<tickets-page></tickets-page>`       : ''}
           ${this.page === 'skills'     ? html`<skills-page></skills-page>`         : ''}

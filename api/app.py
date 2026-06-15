@@ -9,7 +9,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 from .db import ROOT, ensure_db, run_ingest
-from .queries import agents, files, mcps, models, overview, sessions, skills, tickets, tools
+from .queries import agents, files, mcps, models, overview, projects, sessions, skills, tickets, tools
 
 PORT = 8765
 UI_DIR = (ROOT / 'ui').resolve()
@@ -24,6 +24,9 @@ MIME_TYPES = {
 }
 
 GET_ROUTES = [
+    ('/api/projects',        projects.get_projects),
+    ('/api/project-detail',  projects.get_project_detail),   # ?id=<encoded project id>
+
     ('/api/sessions',                                          sessions.get_sessions),
     ('/api/session/{session_id}/turn-details',                 sessions.get_session_turn_details),
     ('/api/session/{session_id}/tool-calls',                   sessions.get_session_tool_calls),

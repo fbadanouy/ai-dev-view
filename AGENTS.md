@@ -34,9 +34,11 @@ the authoritative list of what is real, what is derived, and what must never be 
 - `api/` — `app.py` (HTTP + route table, serves `ui/`), `db.py` (DB access),
   `queries/` (SQL grouped by entity). Reads solely from `ai-dev-view.db`.
 - `ingest.py` — single ingestion pipeline: provider data dirs → `ai-dev-view.db`.
-  Idempotent; run to refresh data.
+  Idempotent; run to refresh data. Ingest scans `{home} ∪ {project roots}` for each
+  provider and resolves `project_id` from each session's `cwd` via `providers/projects.py`.
 - `providers/` — one reader module per provider (`kiro.py`, `claude.py`, `codex.py`);
-  each emits provider-neutral records.
+  each emits provider-neutral records. `providers/projects.py` resolves a session's
+  `cwd` to its nearest project root (ancestor walk for `.git/.kiro/.claude/.codex`).
 - `schema.sql` — single source of truth for DB structure (dimensional schema).
 - `ui/` — the frontend: Lit web components, no build step (Lit/Tailwind/Shoelace via
   CDN), served by `server.py`.

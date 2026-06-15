@@ -32,12 +32,13 @@ _TICKET_RE = config.ticket_re()
 
 # ── Dimensions ───────────────────────────────────────────────────
 
-def read_skills():
+def read_skills(base=None):
+    base = base or CODEX
     out = []
-    for base in (CODEX / 'skills', CODEX / 'skills' / '.system'):
-        if not base.exists():
+    for scan_base in (base / 'skills', base / 'skills' / '.system'):
+        if not scan_base.exists():
             continue
-        for skill_file in sorted(base.glob('*/SKILL.md')):
+        for skill_file in sorted(scan_base.glob('*/SKILL.md')):
             try:
                 text = skill_file.read_text()
                 description = _parse_frontmatter(text).get('description', '')
@@ -53,8 +54,9 @@ def read_skills():
     return out
 
 
-def read_mcps():
-    cfg_path = CODEX / 'config.toml'
+def read_mcps(base=None):
+    base = base or CODEX
+    cfg_path = base / 'config.toml'
     if not cfg_path.exists():
         return []
     try:
@@ -78,8 +80,9 @@ def read_mcps():
     return out
 
 
-def read_agents():
-    agents_dir = CODEX / 'agents'
+def read_agents(base=None):
+    base = base or CODEX
+    agents_dir = base / 'agents'
     if not agents_dir.exists():
         return []
     out = []
