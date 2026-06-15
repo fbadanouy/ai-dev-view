@@ -1,5 +1,7 @@
 # ai-dev-view
 
+![App Demo](https://raw.githubusercontent.com/fbadanouy/ai-dev-view/master/ai-dev-view.gif)
+
 > **Local dashboard for AI coding sessions.** Reads the logs Kiro CLI, Claude Code, and Codex CLI already write on your machine. No signup, no cloud, no invented metrics.
 
 Python 3.9+. Stdlib only. Clone and run.
