@@ -21,7 +21,8 @@ HOME         = Path.home()
 KIRO         = config.provider_path('kiro')
 SESSIONS_DIR = KIRO / 'sessions' / 'cli'
 
-_TICKET_RE   = config.ticket_re()
+_TICKET_RE      = config.ticket_re()
+_SKILL_PATH_RE  = re.compile(r'/skills/(?:\.system/)?([a-z][a-z0-9-]+)/SKILL\.md')
 
 PREVIEW_LEN = 700   # chars of real payload kept in result_preview
 COMMAND_LEN = 300   # chars of input.command kept in command_preview
@@ -125,11 +126,13 @@ def read_agents(base=None):
 
 
 def scan_files(base=None, project_root=None):
-    """Grimoire files: steering / skill / agent docs + AGENTS.md at root."""
+    """Kiro grimoire docs from a .kiro dir: steering / skill / agent markdown.
+
+    Root-level AGENTS.md is provider-agnostic (read by every tool) and is scanned
+    centrally by ingest as provider='shared', not here.
+    """
     base = base or KIRO
-    root_agents = (project_root / 'AGENTS.md') if project_root else (HOME / 'AGENTS.md')
     SCAN = [
-        (str(root_agents),                 'root'),
         (str(base / 'steering/**/*.md'),   'steering'),
         (str(base / 'skills/**/SKILL.md'), 'skill'),
         (str(base / 'agents/*.md'),        'agent'),
@@ -137,9 +140,7 @@ def scan_files(base=None, project_root=None):
     out = []
     for pattern, group in SCAN:
         for path in sorted(glob.glob(pattern, recursive=True)):
-            if group == 'root':
-                name, group_name = os.path.basename(path), None
-            elif group == 'steering':
+            if group == 'steering':
                 rel        = os.path.relpath(path, str(base / 'steering')).replace('.md', '')
                 name       = rel
                 group_name = rel.split('/')[0] if '/' in rel else None
@@ -147,7 +148,8 @@ def scan_files(base=None, project_root=None):
                 name, group_name = path.split('/skills/')[1].split('/')[0], None
             else:
                 name, group_name = os.path.basename(path).replace('.md', ''), None
-            out.append({'path': path, 'name': name, 'type': group, 'group_name': group_name})
+            out.append({'path': path, 'name': name, 'type': group,
+                        'group_name': group_name, 'provider': 'kiro'})
     return out
 
 
@@ -366,6 +368,7 @@ def _parse_session(jf, meta):
         'messages':               parsed['messages'],
         'tool_calls':             tool_calls,
         'skill_counts':           parsed['skill_counts'],
+        'skill_turns':            parsed['skill_turns'],
         'tool_counts':            parsed['tool_counts'],
         'file_accesses':          parsed['file_accesses'],
         'tool_errors':            parsed['tool_errors'],
@@ -380,6 +383,7 @@ def _parse_jsonl(jl, mid_to_turn):
         'tool_call_results':  {},   # toolUseId → {success, error_msg}
         'tool_call_payloads': {},   # toolUseId → result_* fields
         'skill_counts':       {},   # skill (raw /name token) → count; ingest filters to real skills
+        'skill_turns':        [],   # (skill, turn_number) per detection; turn anchor for attribution
         'tool_counts':        {},   # tool_name → count (builtin and mcp alike; mcp_server tags them)
         'file_accesses':      {},   # (op, path) → count
         'tool_errors':        {},   # error_msg → count
@@ -421,6 +425,7 @@ def _parse_jsonl(jl, mid_to_turn):
                 # Skills: explicit /skill-name invocations only (no fuzzy matching)
                 for sk in re.findall(r'/([a-z][a-z0-9-]+)', text):
                     out['skill_counts'][sk] = out['skill_counts'].get(sk, 0) + 1
+                    out['skill_turns'].append((sk, turn))
                 for tm in _TICKET_RE.findall(text):
                     t = tm.upper()
                     out['ticket_counts'][t] = out['ticket_counts'].get(t, 0) + 1
@@ -481,6 +486,12 @@ def _parse_jsonl(jl, mid_to_turn):
                             if p:
                                 p = p.replace(str(HOME), '~')
                                 out['file_accesses'][('read', p)] = out['file_accesses'].get(('read', p), 0) + 1
+                                m = _SKILL_PATH_RE.search(p)
+                                if m:
+                                    sk = m.group(1)
+                                    out['skill_counts'][sk] = out['skill_counts'].get(sk, 0) + 1
+                                    out['skill_turns'].append(
+                                        (sk, out['tool_call_attempts'].get(tool_id, {}).get('turn_number')))
                     elif 'FileWrite' in builtin:
                         p = builtin['FileWrite'].get('path')
                         if p:

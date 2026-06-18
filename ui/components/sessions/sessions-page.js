@@ -44,7 +44,7 @@ class SessionsPage extends LitElement {
     const selected = this.selected ?? filtered[0] ?? null
 
     return html`
-      <master-detail list-width="320px">
+      <master-detail list-width="20rem">
 
         <div slot="list">
           <div class="p-2 border-b border-edge">

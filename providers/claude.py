@@ -7,6 +7,7 @@ CRITICAL: streaming-dedupe rule — assistant records repeat in JSONL as
 content streams, each carrying cumulative usage. Keep the LAST occurrence
 per message id so token sums are not doubled (documented in claude-view).
 """
+import glob
 import json
 import os
 import re
@@ -22,8 +23,9 @@ PROJECTS_DIR = CLAUDE / 'projects'
 PREVIEW_LEN = 700   # mirror kiro.py
 COMMAND_LEN = 300   # mirror kiro.py
 
-_SKILL_RE  = re.compile(r'/([a-z][a-z0-9-]+)')
-_TICKET_RE = config.ticket_re()
+_SKILL_RE      = re.compile(r'/([a-z][a-z0-9-]+)')
+_SKILL_PATH_RE = re.compile(r'/skills/(?:\.system/)?([a-z][a-z0-9-]+)/SKILL\.md')
+_TICKET_RE     = config.ticket_re()
 
 # Claude Code records an explicit slash-command invocation as a harness block
 # <command-name>/foo</command-name> (plugin skills come through namespaced as
@@ -158,9 +160,26 @@ def read_agents(base=None):
     return out
 
 
-def scan_files():
-    # Kiro grimoire concept doesn't map to Claude Code in v1
-    return []
+def scan_files(base=None, project_root=None):
+    """Claude instruction/doc markdown from a .claude dir: CLAUDE.md + agents /
+    skills / commands. Root-level AGENTS.md is scanned centrally as 'shared'.
+    """
+    base = base or CLAUDE
+    out = []
+    cm = base / 'CLAUDE.md'
+    if cm.exists():
+        out.append({'path': str(cm), 'name': 'CLAUDE.md', 'type': 'instructions',
+                    'group_name': None, 'provider': 'claude'})
+    scan = [
+        ('agents/*.md',       'agent',   lambda p: os.path.basename(p)[:-3]),
+        ('skills/*/SKILL.md', 'skill',   lambda p: p.split('/skills/')[1].split('/')[0]),
+        ('commands/*.md',     'command', lambda p: os.path.basename(p)[:-3]),
+    ]
+    for pattern, group, namer in scan:
+        for path in sorted(glob.glob(str(base / pattern))):
+            out.append({'path': path, 'name': namer(path), 'type': group,
+                        'group_name': None, 'provider': 'claude'})
+    return out
 
 
 # ── Sessions ─────────────────────────────────────────────────────
@@ -274,6 +293,7 @@ def _parse_claude_session(jl):
     all_messages = []
     seq = 0
     skill_counts = {}
+    skill_turns = []   # (skill, turn_number) per detection; turn anchor for attribution
     tool_counts = {}
     file_accesses = {}
     tool_errors_map = {}
@@ -393,6 +413,18 @@ def _parse_claude_session(jl):
                             path = path.replace(str(HOME), '~')
                             op = 'read' if tool_name == 'Read' else 'write'
                             file_accesses[(op, path)] = file_accesses.get((op, path), 0) + 1
+                            if tool_name == 'Read':
+                                m = _SKILL_PATH_RE.search(path)
+                                if m:
+                                    skill_counts[m.group(1)] = skill_counts.get(m.group(1), 0) + 1
+                                    skill_turns.append((m.group(1), turn_num))
+                    elif tool_name == 'Skill':
+                        raw_skill = inp.get('skill', '')
+                        if raw_skill:
+                            sk = raw_skill.split(':')[-1].lower()
+                            if sk:
+                                skill_counts[sk] = skill_counts.get(sk, 0) + 1
+                                skill_turns.append((sk, turn_num))
 
                 res_info = tool_results_lookup.get(tool_id)
                 if res_info is None:
@@ -472,12 +504,14 @@ def _parse_claude_session(jl):
                 if _is_real_prompt(r):
                     for sk in _SKILL_RE.findall(text):
                         skill_counts[sk] = skill_counts.get(sk, 0) + 1
+                        skill_turns.append((sk, turn_num))
                 # Explicit slash-command invocations live in <command-name> blocks,
                 # which are stripped from real-prompt text — count them separately.
                 for cmd in _COMMAND_NAME_RE.findall(text):
                     sk = cmd.lstrip('/').split(':')[-1].lower()
                     if sk:
                         skill_counts[sk] = skill_counts.get(sk, 0) + 1
+                        skill_turns.append((sk, turn_num))
                 seq += 1
                 all_messages.append({
                     'seq': seq, 'turn_number': turn_num, 'role': 'user',
@@ -589,6 +623,7 @@ def _parse_claude_session(jl):
         'messages':               all_messages,
         'tool_calls':             all_tool_calls,
         'skill_counts':           skill_counts,
+        'skill_turns':            skill_turns,
         'tool_counts':            tool_counts,
         'file_accesses':          file_accesses,
         'tool_errors':            tool_errors_map,

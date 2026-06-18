@@ -1,10 +1,4 @@
-const API = 'http://localhost:8765/api'
-
-async function getJson(url) {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-  return res.json()
-}
+import { getJson } from '../lib/api.js'
 
 /* Loads a session's conversation: messages + tool calls (joined by
    tool_use_id) + per-turn metrics for the turns graph. */
@@ -35,9 +29,9 @@ export class ConversationController {
     this.host.requestUpdate()
     try {
       const [messages, toolCalls, turns] = await Promise.all([
-        getJson(`${API}/session/${sessionId}/messages`),
-        getJson(`${API}/session/${sessionId}/tool-calls`),
-        getJson(`${API}/session/${sessionId}/turn-details`),
+        getJson(`/session/${sessionId}/messages`),
+        getJson(`/session/${sessionId}/tool-calls`),
+        getJson(`/session/${sessionId}/turn-details`),
       ])
       if (this._sessionId !== sessionId) return  // stale response, a newer load won
       this.messages     = messages
@@ -55,5 +49,5 @@ export class ConversationController {
 
 /* Full input + result payload for one tool call — fetched only on demand. */
 export function fetchFullToolResult(sessionId, toolUseId) {
-  return getJson(`${API}/session/${sessionId}/tool-result/${toolUseId}`)
+  return getJson(`/session/${sessionId}/tool-result/${toolUseId}`)
 }

@@ -10,6 +10,7 @@ Fallback when last_token_usage absent: diff consecutive totals, clamped ≥ 0.
 Sessions with no usable token records leave all codex_* columns NULL.
 """
 
+import glob
 import json
 import os
 import re
@@ -26,8 +27,9 @@ ARCHIVED_DIR = CODEX / 'archived_sessions'
 PREVIEW_LEN = 700
 COMMAND_LEN = 300
 
-_SKILL_RE  = re.compile(r'/([a-z][a-z0-9-]+)')
-_TICKET_RE = config.ticket_re()
+_SKILL_RE      = re.compile(r'/([a-z][a-z0-9-]+)')
+_SKILL_PATH_RE = re.compile(r'/skills/(?:\.system/)?([a-z][a-z0-9-]+)/SKILL\.md')
+_TICKET_RE     = config.ticket_re()
 
 
 # ── Dimensions ───────────────────────────────────────────────────
@@ -107,9 +109,28 @@ def read_agents(base=None):
     return out
 
 
-def scan_files():
-    # Grimoire concept doesn't map to Codex
-    return []
+def scan_files(base=None, project_root=None):
+    """Codex instruction/doc markdown from a .codex dir: AGENTS.md (this dir's
+    own copy) + agents / skills (incl .system) / prompts. The project-root
+    AGENTS.md is scanned centrally as 'shared'.
+    """
+    base = base or CODEX
+    out = []
+    am = base / 'AGENTS.md'
+    if am.exists():
+        out.append({'path': str(am), 'name': 'AGENTS.md', 'type': 'instructions',
+                    'group_name': None, 'provider': 'codex'})
+    scan = [
+        ('agents/*.md',               'agent',   lambda p: os.path.basename(p)[:-3]),
+        ('skills/*/SKILL.md',         'skill',   lambda p: p.split('/skills/')[1].split('/')[0]),
+        ('skills/.system/*/SKILL.md', 'skill',   lambda p: p.split('/.system/')[1].split('/')[0]),
+        ('prompts/*.md',              'command', lambda p: os.path.basename(p)[:-3]),
+    ]
+    for pattern, group, namer in scan:
+        for path in sorted(glob.glob(str(base / pattern))):
+            out.append({'path': path, 'name': namer(path), 'type': group,
+                        'group_name': None, 'provider': 'codex'})
+    return out
 
 
 # ── Sessions ─────────────────────────────────────────────────────
@@ -516,6 +537,7 @@ def _parse_codex_session(jl):
     turns_out = []
     all_messages = []
     skill_counts = {}
+    skill_turns  = []   # (skill, turn_number) per detection; turn anchor for attribution
     tool_counts  = {}
     file_accesses = {}
     tool_errors_map = {}
@@ -561,6 +583,20 @@ def _parse_codex_session(jl):
                     abbrev = path.replace(str(HOME), '~')
                     # reads are not derivable from codex logs — only writes are tracked
                     file_accesses[('write', abbrev)] = file_accesses.get(('write', abbrev), 0) + 1
+
+        # skill detection from SKILL.md reads in shell commands (function_call or local_shell_call)
+        for r in turn_recs:
+            if r.get('type') == 'response_item':
+                ri_p = r.get('payload', {})
+                if ri_p.get('type') in ('function_call', 'local_shell_call'):
+                    raw_args = ri_p.get('arguments', '')
+                    if raw_args:
+                        args_str = raw_args if isinstance(raw_args, str) else json.dumps(raw_args)
+                        m = _SKILL_PATH_RE.search(args_str)
+                        if m:
+                            sk = m.group(1)
+                            skill_counts[sk] = skill_counts.get(sk, 0) + 1
+                            skill_turns.append((sk, turn_number))
 
         # total_request_count: token_count events with non-null info in this turn
         request_count = td['request_count'] or None
@@ -609,6 +645,7 @@ def _parse_codex_session(jl):
                 if text:
                     for sk in _SKILL_RE.findall(text):
                         skill_counts[sk] = skill_counts.get(sk, 0) + 1
+                        skill_turns.append((sk, turn_number))
                     seq += 1
                     all_messages.append({
                         'seq': seq, 'turn_number': turn_number, 'role': 'user',
@@ -714,6 +751,7 @@ def _parse_codex_session(jl):
         'messages':               all_messages,
         'tool_calls':             all_tool_calls,
         'skill_counts':           skill_counts,
+        'skill_turns':            skill_turns,
         'tool_counts':            tool_counts,
         'file_accesses':          file_accesses,
         'tool_errors':            tool_errors_map,

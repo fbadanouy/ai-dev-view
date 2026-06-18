@@ -3,6 +3,14 @@ export function fmtDate(iso) {
   return new Date(iso).toLocaleDateString()
 }
 
+export function fmtDuration(secs) {
+  if (secs == null) return '—'
+  if (secs < 60) return `${secs}s`
+  const m = Math.floor(secs / 60)
+  if (m < 60) return `${m}m`
+  return `${Math.floor(m / 60)}h ${m % 60}m`
+}
+
 export function timeAgo(iso) {
   if (!iso) return null
   const secs = Math.floor((Date.now() - new Date(iso)) / 1000)

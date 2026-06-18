@@ -1,5 +1,8 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4/auto/+esm'
+import { getJson } from '../../lib/api.js'
+import { asyncView } from '../../lib/async-view.js'
+import { CHART_COLORS as C } from '../ui/time-chart.js'
 
 /*  <analytics-page>
  *
@@ -11,21 +14,6 @@ import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4/auto/+esm'
  *  Charts use one fixed palette (matches the default solarized-grey vibe)
  *  rather than following the theme selector — a deliberate simplification.
  */
-
-const C = {
-  kiro:   '#787cc9',
-  claude: '#d26437',
-  codex:  '#88a7b8',
-  line:   '#b58900',
-  grid:   'rgba(147, 161, 161, 0.12)',
-  text:   '#93a1a1',
-  blue:   '#268bd2',
-  cyan:   '#2aa198',
-  green:  '#859900',
-  yellow: '#b58900',
-  orange: '#d26437',
-  magenta:'#d95294',
-}
 
 const METRICS = [
   { id: 'tool_uses', label: 'tool calls' },
@@ -70,8 +58,7 @@ class AnalyticsPage extends LitElement {
 
   async load() {
     try {
-      const res = await fetch(`http://localhost:8765/api/analytics/overview?bucket=${this._bucket}`)
-      this._data = await res.json()
+      this._data = await getJson(`/analytics/overview?bucket=${this._bucket}`)
       this._error = null
     } catch (e) {
       this._error = String(e)
@@ -171,18 +158,11 @@ class AnalyticsPage extends LitElement {
   }
 
   render() {
-    if (this._error) return html`
-      <div class="m-6 bg-red-950 border border-rose-500 rounded-lg p-4 text-red-300 text-sm">
-        Could not load analytics<br><span class="font-semibold">${this._error}</span>
-      </div>
-    `
-    if (!this._data) return html`
-      <div class="flex items-center gap-2 text-dim text-sm p-6">
-        <sl-spinner style="font-size:1rem; --track-color:var(--border); --indicator-color:var(--brand)"></sl-spinner>
-        Loading analytics…
-      </div>
-    `
+    return asyncView({ loading: !this._data && !this._error, error: this._error },
+      () => this._renderCharts())
+  }
 
+  _renderCharts() {
     const toggleCls = active => `px-2 py-0.5 rounded font-mono text-xs cursor-pointer border transition-colors
       ${active ? 'border-edge-strong bg-surface2 text-fg' : 'border-edge text-dim hover:text-muted'}`
 

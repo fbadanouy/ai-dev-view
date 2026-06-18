@@ -1,10 +1,4 @@
-const API = 'http://localhost:8765/api'
-
-async function getJson(u) {
-  const r = await fetch(u)
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`)
-  return r.json()
-}
+import { getJson } from '../lib/api.js'
 
 export class ProjectsController {
   projects = []
@@ -18,7 +12,7 @@ export class ProjectsController {
 
   async hostConnected() {
     try {
-      this.projects = await getJson(`${API}/projects`)
+      this.projects = await getJson('/projects')
     } catch (e) {
       this.error = e.message
     } finally {

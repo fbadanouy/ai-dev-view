@@ -1,4 +1,5 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
+import { getJson } from '../../lib/api.js'
 import './session-card.js'
 
 class SessionsList extends LitElement {
@@ -20,9 +21,7 @@ class SessionsList extends LitElement {
   async connectedCallback() {
     super.connectedCallback()
     try {
-      const res = await fetch('http://localhost:8765/api/sessions')
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-      this.sessions = await res.json()
+      this.sessions = await getJson('/sessions')
     } catch (e) {
       this.error = e.message
     } finally {

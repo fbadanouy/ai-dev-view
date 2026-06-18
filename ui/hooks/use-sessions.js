@@ -1,4 +1,4 @@
-const API = 'http://localhost:8765/api/sessions'
+import { getJson } from '../lib/api.js'
 
 function computeMaxes(sessions) {
   const pluck = key => Math.max(0, ...sessions.map(s => s[key] || 0))
@@ -34,9 +34,7 @@ export class SessionsController {
 
   async hostConnected() {
     try {
-      const res = await fetch(API)
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-      this.sessions = await res.json()
+      this.sessions = await getJson('/sessions')
       this.maxes    = computeMaxes(this.sessions)
     } catch (e) {
       this.error = e.message

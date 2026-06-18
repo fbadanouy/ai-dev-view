@@ -2,13 +2,14 @@ import { LitElement, html, css } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/al
 
 class MasterDetail extends LitElement {
   static properties = {
-    listWidth: { type: String },
+    listWidth: { type: String, attribute: 'list-width' },
   }
 
   static styles = css`
     :host {
       display: flex;
-      height: var(--md-height, calc(100vh - 120px));
+      /* offset in rem so it tracks the header height at any UI scale */
+      height: var(--md-height, calc(100vh - 7.5rem));
       overflow: hidden;
     }
     .list {

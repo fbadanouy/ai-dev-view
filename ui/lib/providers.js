@@ -13,6 +13,7 @@ import '../components/sessions/session-card-stats-codex.js'
  *    label      String                     short display name
  *    text       String                     accent text class (inline label)
  *    badge      String                     badge classes (detail header)
+ *    color      String                     raw hex — for canvas/SVG (charts, dots)
  *    resumeCmd  (id) => String | null      CLI command to resume a session
  *    statsCard  (session, maxes) => html   per-provider card metrics
  */
@@ -22,6 +23,7 @@ export const PROVIDERS = {
     label: 'kiro',
     text:  'text-provider-kiro',
     badge: 'bg-purple-950/50 text-purple-400 border border-purple-900',
+    color: '#787cc9',
     resumeCmd: id => `kiro-cli --resume-id ${id}`,
     statsCard: (s, m) => html`<session-card-stats-kiro .session=${s} .maxes=${m}></session-card-stats-kiro>`,
   },
@@ -30,6 +32,7 @@ export const PROVIDERS = {
     label: 'claude',
     text:  'text-provider-claude',
     badge: 'bg-orange-950/50 text-orange-400 border border-orange-900',
+    color: '#d26437',
     resumeCmd: id => `claude --resume ${id}`,
     statsCard: (s, m) => html`<session-card-stats-claude .session=${s} .maxes=${m}></session-card-stats-claude>`,
   },
@@ -38,6 +41,7 @@ export const PROVIDERS = {
     label: 'codex',
     text:  'text-provider-codex',
     badge: 'bg-zinc-900 text-zinc-400 border border-zinc-700',
+    color: '#88a7b8',
     resumeCmd: id => `codex resume ${id}`,
     statsCard: (s, m) => html`<session-card-stats-codex .session=${s} .maxes=${m}></session-card-stats-codex>`,
   },
@@ -48,6 +52,7 @@ const UNKNOWN = {
   label: '?',
   text:  'text-muted',
   badge: 'bg-surface2 text-muted border border-edge-strong',
+  color: '#888888',
   resumeCmd: null,
   statsCard: () => html``,
 }

@@ -1,47 +1,19 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
+import { FetchController } from '../../hooks/use-fetch.js'
+import { asyncView } from '../../lib/async-view.js'
 import './model-card.js'
 
 /* Models as a floating grid of comparable ratio cards — no drill-down.
    Pure display of /api/models. */
 class ModelsPage extends LitElement {
-  static properties = {
-    models:   { type: Array },
-    _loading: { state: true },
-    _error:   { state: true },
-  }
-
-  constructor() {
-    super()
-    this._loading = true
-  }
+  _models = new FetchController(this, '/models')
 
   createRenderRoot() { return this }
 
-  async connectedCallback() {
-    super.connectedCallback()
-    try {
-      const res = await fetch('http://localhost:8765/api/models')
-      this.models = await res.json()
-      this._error = null
-    } catch (e) {
-      this._error = String(e)
-    }
-    this._loading = false
-  }
-
   render() {
-    if (this._loading) return html`
-      <div class="flex items-center gap-3 text-dim py-12 px-6">
-        <sl-spinner style="font-size:1.5rem; --track-color:var(--border); --indicator-color:var(--brand)"></sl-spinner>
-      </div>
-    `
-    if (this._error) return html`
-      <div class="m-6 bg-red-950 border border-rose-500 rounded-lg p-4 text-red-300 text-sm">
-        Could not reach server.py<br><span class="font-semibold">${this._error}</span>
-      </div>
-    `
+    const { data, loading, error } = this._models
 
-    const models = this.models ?? []
+    const models = data ?? []
     const used   = models.filter(m => m.total_sessions > 0)
     const unused = models.filter(m => !m.total_sessions)
 
@@ -54,7 +26,7 @@ class ModelsPage extends LitElement {
       duration:      Math.max(...used.map(m => m.avg_duration_mins || 0), 1),
     }
 
-    return html`
+    return asyncView({ loading, error }, () => html`
       <div class="p-6 flex flex-col gap-6">
 
         <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))">
@@ -75,7 +47,7 @@ class ModelsPage extends LitElement {
         ` : ''}
 
       </div>
-    `
+    `)
   }
 }
 

@@ -65,8 +65,9 @@ CREATE TABLE IF NOT EXISTS files (
     id          INTEGER PRIMARY KEY,
     path        TEXT UNIQUE NOT NULL,
     name        TEXT NOT NULL,
-    type        TEXT NOT NULL,     -- skill, agent, steering, root
+    type        TEXT NOT NULL,     -- skill, agent, steering, root, instructions, command
     group_name  TEXT,
+    provider    TEXT NOT NULL DEFAULT '',  -- kiro|claude|codex|shared (AGENTS.md)
     scope       TEXT NOT NULL DEFAULT 'user',
     project_id  TEXT NOT NULL DEFAULT ''
 );
@@ -128,13 +129,26 @@ CREATE TABLE IF NOT EXISTS session_turns (
 
 -- ── Bridges ─────────────────────────────────────────────────────
 
--- Skills invoked via explicit /skill-name in a Prompt
+-- Skills used in a session, detected from real tool activity: a SKILL.md
+-- load (file read / shell read / Skill tool), an explicit /skill-name token,
+-- or a <command-name> harness block. Aggregate per (session, skill).
 CREATE TABLE IF NOT EXISTS session_skills (
     session_id TEXT NOT NULL REFERENCES sessions(id),
     skill      TEXT NOT NULL REFERENCES skills(name),
-    signal     TEXT NOT NULL DEFAULT 'invoked',  -- only 'invoked' until loaded-detection is solved
+    signal     TEXT NOT NULL DEFAULT 'invoked',
     count      INTEGER DEFAULT 1,
     PRIMARY KEY (session_id, skill, signal)
+);
+
+-- Turn anchor for skill use: which turn(s) each skill was detected in. Lets the
+-- UI attribute REAL per-turn activity (tools driven, duration) to a skill without
+-- estimating — the unit of attribution is the invoking turn, never the skill alone.
+CREATE TABLE IF NOT EXISTS session_skill_turns (
+    session_id  TEXT NOT NULL REFERENCES sessions(id),
+    skill       TEXT NOT NULL REFERENCES skills(name),
+    turn_number INTEGER NOT NULL,
+    count       INTEGER DEFAULT 1,   -- detections of this skill within the turn
+    PRIMARY KEY (session_id, skill, turn_number)
 );
 
 -- MCP tool calls mapped to their server via mcp.json prefix matching
@@ -248,6 +262,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_updated  ON sessions(updated_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_project  ON sessions(project_id);
 CREATE INDEX IF NOT EXISTS idx_session_turns_sid ON session_turns(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_skills_sk ON session_skills(skill);
+CREATE INDEX IF NOT EXISTS idx_sst_skill         ON session_skill_turns(skill);
+CREATE INDEX IF NOT EXISTS idx_sst_session       ON session_skill_turns(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_mcps_srv  ON session_mcps(mcp_server);
 CREATE INDEX IF NOT EXISTS idx_session_tools_sid  ON session_tool_uses(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_tools_name ON session_tool_uses(tool_name);

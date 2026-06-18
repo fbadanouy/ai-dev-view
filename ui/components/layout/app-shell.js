@@ -1,4 +1,5 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
+import { postJson } from '../../lib/api.js'
 import './app-nav.js'
 import '../projects/projects-page.js'
 import '../sessions/sessions-page.js'
@@ -45,8 +46,7 @@ class AppShell extends LitElement {
     if (this._sync === 'busy') return
     this._sync = 'busy'
     try {
-      const res = await fetch('http://localhost:8765/api/ingest', { method: 'POST' })
-      const data = await res.json()
+      const data = await postJson('/ingest')
       if (!data.success) throw new Error(data.error ?? 'ingest failed')
       location.reload()   // simplest full data refresh — every page refetches
     } catch (e) {

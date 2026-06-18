@@ -1,4 +1,5 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
+import { fmtDate } from '../../lib/format.js'
 import '../ui/stat-bar.js'
 
 /*  <model-card>
@@ -58,7 +59,7 @@ class ModelCard extends LitElement {
 
         ${m.last_used ? html`
           <div class="flex mt-2 text-xs text-dim">
-            <span class="ml-auto">${new Date(m.last_used).toLocaleDateString()}</span>
+            <span class="ml-auto">${fmtDate(m.last_used)}</span>
           </div>` : ''}
 
       </div>

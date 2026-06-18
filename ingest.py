@@ -103,7 +103,8 @@ def _expand(root):
 
 
 def write_skills(conn, project_roots):
-    user_names, proj_names = set(), {}
+    user_names = {}   # pname → set of skill names
+    proj_names  = {}  # (pname, pid) → set of skill names
     for pname, provider in PROVIDERS:
         batches = [('user', '', provider.read_skills())]
         if pname == 'claude':
@@ -119,10 +120,14 @@ def write_skills(conn, project_roots):
                     '(name, description, path, created_at, provider, scope, project_id) '
                     'VALUES (?, ?, ?, ?, ?, ?, ?)',
                     (s['name'], s['description'], s['path'], s.get('created_at'), pname, scope, pid))
-                (user_names if scope in ('user', 'plugin') else
-                 proj_names.setdefault(pid, set())).add(s['name'])
+                if scope in ('user', 'plugin'):
+                    user_names.setdefault(pname, set()).add(s['name'])
+                else:
+                    proj_names.setdefault((pname, pid), set()).add(s['name'])
     conn.commit()
-    print(f'  skills:  user={len(user_names)} projects={sum(len(v) for v in proj_names.values())}')
+    total_user = sum(len(v) for v in user_names.values())
+    total_proj = sum(len(v) for v in proj_names.values())
+    print(f'  skills:  user={total_user} projects={total_proj}')
     return user_names, proj_names
 
 
@@ -177,19 +182,45 @@ def write_agents(conn, project_roots):
     print(f'  agents:  {total}')
 
 
+def _root_docs(root_dir):
+    """Provider-agnostic instruction docs at a project/home root.
+    AGENTS.md is the shared cross-tool convention; CLAUDE.md is Claude's."""
+    out = []
+    a = root_dir / 'AGENTS.md'
+    if a.exists():
+        out.append((str(a), 'AGENTS.md', 'root', None, 'shared'))
+    c = root_dir / 'CLAUDE.md'
+    if c.exists():
+        out.append((str(c), 'CLAUDE.md', 'instructions', None, 'claude'))
+    return out
+
+
 def write_files(conn, project_roots):
-    rows = []   # (path, name, type, group_name, scope, project_id)
-    if config.provider_enabled('kiro'):
-        for f in kiro.scan_files():
-            rows.append((f['path'], f['name'], f['type'], f['group_name'], 'user', ''))
+    rows = []   # (path, name, type, group_name, provider, scope, project_id)
+
+    # Per-provider config-dir docs: home (~/.<provider>) + each project's .<provider>
+    for pname, provider in PROVIDERS:
+        home_base = config.provider_path(pname)
+        if home_base.exists():
+            for f in provider.scan_files(base=home_base):
+                rows.append((f['path'], f['name'], f['type'], f['group_name'],
+                             f['provider'], 'user', ''))
         for root in project_roots:
-            base = _expand(root) / '.kiro'
+            base = _expand(root) / CONFIG_DIRNAME[pname]
             if base.exists():
-                for f in kiro.scan_files(base=base, project_root=_expand(root)):
-                    rows.append((f['path'], f['name'], f['type'], f['group_name'], 'project', root))
+                for f in provider.scan_files(base=base, project_root=_expand(root)):
+                    rows.append((f['path'], f['name'], f['type'], f['group_name'],
+                                 f['provider'], 'project', root))
+
+    # Shared root instruction docs (AGENTS.md / CLAUDE.md): home + each project root
+    scopes = [(Path.home(), 'user', '')] + [(_expand(root), 'project', root) for root in project_roots]
+    for root_dir, scope, pid in scopes:
+        for path, name, ftype, group, prov in _root_docs(root_dir):
+            rows.append((path, name, ftype, group, prov, scope, pid))
+
     conn.executemany(
-        'INSERT OR IGNORE INTO files (path, name, type, group_name, scope, project_id) '
-        'VALUES (?, ?, ?, ?, ?, ?)', rows)
+        'INSERT OR IGNORE INTO files (path, name, type, group_name, provider, scope, project_id) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)', rows)
     conn.commit()
     print(f'  files:   {len(rows)}')
 
@@ -250,8 +281,9 @@ def write_sessions(conn, sessions, sid_pid, user_skills, proj_skills, mcp_prefix
         # Full rebuild per session: clear derived rows so removed data can't linger.
         # session_props is user-authored and deliberately NOT in this list.
         for table in ('session_turns', 'session_messages', 'session_tool_calls',
-                      'session_skills', 'session_mcps', 'session_tool_uses',
-                      'session_file_accesses', 'session_tool_errors', 'session_tickets'):
+                      'session_skills', 'session_skill_turns', 'session_mcps',
+                      'session_tool_uses', 'session_file_accesses',
+                      'session_tool_errors', 'session_tickets'):
             conn.execute(f'DELETE FROM {table} WHERE session_id = ?', (sid,))
 
         conn.executemany('''
@@ -303,11 +335,22 @@ def write_sessions(conn, sessions, sid_pid, user_skills, proj_skills, mcp_prefix
                tc['result_preview'], tc['result_truncated'], tc['result_meta'])
               for tc in s['tool_calls']])
 
-        # Skills: only /skill-name tokens that match user or this project's skills
-        allowed = user_skills | proj_skills.get(pid, set())
+        # Skills: only tokens that match skills actually installed for this provider
+        provider = s.get('provider', '')
+        allowed = user_skills.get(provider, set()) | proj_skills.get((provider, pid), set())
         conn.executemany(
             "INSERT INTO session_skills (session_id, skill, signal, count) VALUES (?, ?, 'invoked', ?)",
             [(sid, skill, count) for skill, count in s['skill_counts'].items() if skill in allowed])
+
+        # Turn anchor: aggregate (skill, turn) detections, same provider filter.
+        # turn may be None if a detection couldn't be tied to a turn — drop those.
+        skill_turn_counts = {}
+        for skill, turn in s.get('skill_turns', []):
+            if skill in allowed and turn is not None:
+                skill_turn_counts[(skill, turn)] = skill_turn_counts.get((skill, turn), 0) + 1
+        conn.executemany(
+            "INSERT INTO session_skill_turns (session_id, skill, turn_number, count) VALUES (?, ?, ?, ?)",
+            [(sid, skill, turn, count) for (skill, turn), count in skill_turn_counts.items()])
 
         mcp_rows, builtin_rows = [], []
         for tool_name, count in s['tool_counts'].items():

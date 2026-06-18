@@ -1,6 +1,9 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { unsafeHTML } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { marked } from 'https://cdn.jsdelivr.net/npm/marked@12/lib/marked.esm.js'
+import { fmtBytes } from '../../lib/format.js'
+import { utf8Bytes, fileHealth, STATUS_META } from '../../lib/file-health.js'
+import './context-load.js'
 
 class FileViewer extends LitElement {
   static properties = { file: { type: Object } }
@@ -14,18 +17,22 @@ class FileViewer extends LitElement {
       </div>
     `
 
-    const { name, type, group_name, path, content } = this.file
+    const { name, path, content } = this.file
+    const health = fileHealth(this.file)
+    const sizeLabel = content ? fmtBytes(utf8Bytes(content)) : null
 
     return html`
       <div class="p-6 max-w-3xl">
 
-        <div class="mb-6 pb-4 border-b border-edge">
-          <h2 class="text-lg font-semibold text-fg mb-1">${name}</h2>
-          <div class="text-xs text-dim font-mono">${path}</div>
-          <div class="flex gap-2 mt-2">
-            <span class="text-xs px-2 py-0.5 rounded bg-surface2 text-muted uppercase tracking-widest">${type}</span>
-            ${group_name ? html`<span class="text-xs px-2 py-0.5 rounded bg-surface2 text-muted">${group_name}</span>` : ''}
+        <div class="mb-4 pb-4 border-b border-edge">
+          <div class="flex items-center gap-2 mb-1">
+            <h2 class="text-lg font-semibold text-fg">${name}</h2>
+            ${this._healthDot(health)}
           </div>
+          <div class="text-xs text-dim font-mono mb-4">
+            ${path}${sizeLabel ? html`&nbsp;<span class="text-dim opacity-60">[${sizeLabel}]</span>` : ''}
+          </div>
+          <context-load .file=${this.file}></context-load>
         </div>
 
         <style>
@@ -51,6 +58,19 @@ class FileViewer extends LitElement {
       </div>
     `
   }
+
+  _healthDot(health) {
+    if (!health || !health.status) return ''
+    const m = STATUS_META[health.status]
+    const pct = Math.round(health.ratio * 100)
+    return html`
+      <span class="inline-flex items-center gap-1.5 text-xs" title="${health.summary} — ${health.source}">
+        <span class="inline-block w-2.5 h-2.5 rounded-full" style="background:${m.color}"></span>
+        <span class="text-dim">${m.label} · ${pct}%</span>
+      </span>
+    `
+  }
+
 }
 
 customElements.define('file-viewer', FileViewer)

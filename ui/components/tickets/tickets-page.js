@@ -1,6 +1,7 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { TicketsController } from '../../hooks/use-tickets.js'
 import { SessionsController } from '../../hooks/use-sessions.js'
+import { fmtDate } from '../../lib/format.js'
 import '../layout/master-detail.js'
 import '../ui/search-bar.js'
 import '../sessions/session-card.js'
@@ -53,7 +54,7 @@ class TicketsPage extends LitElement {
     const session = this.selectedSession ?? ticketSessions[0] ?? null
 
     return html`
-      <master-detail list-width="240px">
+      <master-detail list-width="15rem">
 
         <div slot="list">
           <div class="p-2 border-b border-edge">
@@ -77,7 +78,7 @@ class TicketsPage extends LitElement {
                 <div class="text-xs text-dim">
                   ${t.session_count} session${t.session_count === 1 ? '' : 's'}
                   ${t.mention_count ? html` · ${t.mention_count} mention${t.mention_count === 1 ? '' : 's'}` : ''}
-                  ${t.last_activity ? html` · ${new Date(t.last_activity).toLocaleDateString()}` : ''}
+                  ${t.last_activity ? html` · ${fmtDate(t.last_activity)}` : ''}
                 </div>
               </button>
             `)}
@@ -86,7 +87,7 @@ class TicketsPage extends LitElement {
 
         <div slot="detail" style="height:100%;display:flex;flex-direction:column">
           ${ticket ? html`
-            <master-detail list-width="320px" style="--md-height:100%">
+            <master-detail list-width="20rem" style="--md-height:100%">
 
               <div slot="list">
                 <div class="px-3 py-2 text-xs text-dim border-b border-edge">

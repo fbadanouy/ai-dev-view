@@ -77,8 +77,12 @@ def get_tool_detail(tool_name):
     ''', (tool_name,))]
 
     sessions = query('''
-        SELECT DISTINCT s.id AS session_id, s.title, s.updated_at,
-               COUNT(tc.tool_use_id) AS call_count
+        SELECT s.id AS session_id, s.title, s.ticket, s.updated_at, s.provider,
+               COUNT(tc.tool_use_id) AS call_count,
+               (SELECT json_group_array(v) FROM (
+                   SELECT COALESCE(number_of_cycles, codex_output_tokens, output_tokens) AS v
+                   FROM session_turns WHERE session_id = s.id ORDER BY turn_number
+               )) AS spark
         FROM session_tool_calls tc
         JOIN sessions s ON s.id = tc.session_id
         WHERE tc.tool_name = ?

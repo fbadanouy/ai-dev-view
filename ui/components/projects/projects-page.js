@@ -2,31 +2,12 @@ import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit
 import { ProjectsController } from '../../hooks/use-projects.js'
 import '../layout/master-detail.js'
 import '../ui/stat-card.js'
-
-const API = 'http://localhost:8765/api'
-
-const PROVIDER_COLORS = {
-  kiro:   'bg-yellow-900/40 text-yellow-400 border-yellow-700',
-  claude: 'bg-purple-900/40 text-purple-300 border-purple-700',
-  codex:  'bg-blue-900/40   text-blue-300   border-blue-700',
-}
-
-function providerBadge(p) {
-  const cls = PROVIDER_COLORS[p] ?? 'bg-surface2 text-muted border-edge'
-  return html`<span class="text-[10px] px-1.5 py-0.5 rounded border font-mono ${cls}">${p}</span>`
-}
-
-function fmtDuration(secs) {
-  if (!secs) return '0m'
-  const h = Math.floor(secs / 3600)
-  const m = Math.floor((secs % 3600) / 60)
-  return h ? `${h}h ${m}m` : `${m}m`
-}
-
-function fmtDate(iso) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString()
-}
+import '../sessions/session-mini-row.js'
+import { CHART_COLORS } from '../ui/time-chart.js'
+import '../ui/time-chart.js'
+import '../ui/provider-badge.js'
+import { getJson } from '../../lib/api.js'
+import { provider } from '../../lib/providers.js'
 
 class ProjectsPage extends LitElement {
   static properties = {
@@ -44,8 +25,7 @@ class ProjectsPage extends LitElement {
     this.detail   = null
     this._loadingDetail = true
     try {
-      const res = await fetch(`${API}/project-detail?id=${encodeURIComponent(p.id)}`)
-      this.detail = await res.json()
+      this.detail = await getJson(`/project-detail?id=${encodeURIComponent(p.id)}`)
     } catch (e) {
       this.detail = { error: e.message }
     } finally {
@@ -68,7 +48,7 @@ class ProjectsPage extends LitElement {
     `
 
     return html`
-      <master-detail list-width="280px">
+      <master-detail list-width="17.5rem">
 
         <div slot="list" class="text-xs">
           ${projects.map(p => this._row(p))}
@@ -101,10 +81,52 @@ class ProjectsPage extends LitElement {
         </div>
         <div class="flex items-center gap-1.5 flex-shrink-0 ml-2">
           ${providers.slice(0, 2).map(pr => html`
-            <span class="w-1.5 h-1.5 rounded-full ${PROVIDER_COLORS[pr] ? `bg-current ${PROVIDER_COLORS[pr].split(' ')[1]}` : 'bg-muted'}"></span>
+            <span class="w-1.5 h-1.5 rounded-full" style="background:${provider(pr).color}"></span>
           `)}
           <span class="text-xs text-dim">${p.session_count}</span>
         </div>
+      </div>
+    `
+  }
+
+  _renderActivityChart(ts) {
+    if (!ts || !ts.buckets?.length) return ''
+    // Stacked session bars per provider (matches the analytics hero chart) +
+    // one tool-uses line. Providers with no sessions here drop out automatically.
+    const bars = ['kiro', 'claude', 'codex']
+      .filter(p => (ts.sessions[p] || []).some(v => v != null))
+      .map(p => ({
+        type: 'bar', label: p, data: ts.sessions[p], yAxisID: 'y', order: 2,
+        backgroundColor: CHART_COLORS[p], borderRadius: 3, maxBarThickness: 28,
+      }))
+    const datasets = [
+      ...bars,
+      { type: 'line', label: 'tool uses', data: ts.tool_uses, yAxisID: 'y1', order: 1,
+        borderColor: CHART_COLORS.line, backgroundColor: CHART_COLORS.line,
+        borderWidth: 2, pointRadius: 3, tension: 0.3 },
+    ]
+    const options = {
+      plugins: { legend: { display: true, position: 'bottom',
+                           labels: { boxWidth: 10, boxHeight: 10 } } },
+      scales: {
+        x:  { stacked: true, grid: { display: false } },
+        y:  { stacked: true, beginAtZero: true, grid: { color: CHART_COLORS.grid },
+              ticks: { precision: 0 }, title: { display: true, text: 'sessions' } },
+        y1: { beginAtZero: true, position: 'right', grid: { display: false },
+              title: { display: true, text: 'tool uses' } },
+      },
+    }
+    return html`
+      <div class="mb-8 bg-surface border border-edge rounded-xl p-5">
+        <div class="text-xs text-dim uppercase tracking-widest mb-4">
+          Activity over time <span class="text-muted normal-case">· by ${ts.bucket}</span>
+        </div>
+        <time-chart
+          .labels=${ts.buckets}
+          .datasets=${datasets}
+          .options=${options}
+          .height=${260}
+        ></time-chart>
       </div>
     `
   }
@@ -129,20 +151,19 @@ class ProjectsPage extends LitElement {
       <div class="mb-6">
         <div class="flex items-center gap-3 mb-1 flex-wrap">
           <h2 class="font-mono text-lg text-yellow-400">${p.name}</h2>
-          ${providers.map(pr => providerBadge(pr))}
+          ${providers.map(pr => html`<provider-badge provider=${pr}></provider-badge>`)}
         </div>
         ${p.root_path ? html`<div class="text-xs text-dim font-mono">${p.root_path}</div>` : ''}
       </div>
 
       <!-- Stats row -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      <div class="grid grid-cols-2 gap-3 mb-6">
         <stat-card label="Sessions"   .value=${p.session_count ?? 0}></stat-card>
         <stat-card label="Tool uses"  .value=${p.total_tool_uses ?? 0}></stat-card>
-        <stat-card label="Duration"   .value=${fmtDuration(p.total_duration_secs)}></stat-card>
-        <stat-card label="Active"
-                   .value=${p.last_seen ? fmtDate(p.last_seen) : '—'}
-                   value-cls="text-fg text-sm"></stat-card>
       </div>
+
+      <!-- Sessions & tool uses over time -->
+      ${this._renderActivityChart(d.timeseries)}
 
       <!-- Models -->
       ${d.models?.length ? html`
@@ -181,7 +202,7 @@ class ProjectsPage extends LitElement {
               ${d.skills.map(s => html`
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded border border-edge mb-1 text-xs">
                   <span class="font-mono text-fg">${s.name}</span>
-                  ${providerBadge(s.provider)}
+                  <provider-badge provider=${s.provider}></provider-badge>
                   ${s.description ? html`<span class="text-dim truncate">${s.description}</span>` : ''}
                 </div>
               `)}
@@ -194,7 +215,7 @@ class ProjectsPage extends LitElement {
               ${d.agents.map(a => html`
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded border border-edge mb-1 text-xs">
                   <span class="font-mono text-fg">${a.name}</span>
-                  ${providerBadge(a.provider)}
+                  <provider-badge provider=${a.provider}></provider-badge>
                   ${a.description ? html`<span class="text-dim truncate">${a.description}</span>` : ''}
                 </div>
               `)}
@@ -207,7 +228,7 @@ class ProjectsPage extends LitElement {
               ${d.mcps.map(m => html`
                 <div class="flex items-center gap-2 px-3 py-1.5 rounded border border-edge mb-1 text-xs">
                   <span class="font-mono text-fg">${m.server}</span>
-                  ${providerBadge(m.provider)}
+                  <provider-badge provider=${m.provider}></provider-badge>
                   ${m.command ? html`<span class="text-dim font-mono truncate">${m.command}</span>` : ''}
                 </div>
               `)}
@@ -233,16 +254,7 @@ class ProjectsPage extends LitElement {
         <div>
           <div class="text-xs font-semibold text-dim uppercase tracking-widest mb-3">Sessions</div>
           <div class="flex flex-col gap-1">
-            ${d.sessions.map(s => html`
-              <div class="flex items-center justify-between px-3 py-2 rounded border border-edge hover:border-edge-strong text-xs">
-                <span class="text-fg truncate max-w-sm">${s.title || 'untitled'}</span>
-                <div class="flex items-center gap-3 flex-shrink-0 ml-3">
-                  ${s.provider ? providerBadge(s.provider) : ''}
-                  ${s.ticket ? html`<span class="text-dim">🎫 ${s.ticket}</span>` : ''}
-                  <span class="text-dim">${fmtDate(s.updated_at)}</span>
-                </div>
-              </div>
-            `)}
+            ${d.sessions.map(s => html`<session-mini-row .session=${s}></session-mini-row>`)}
           </div>
         </div>
       ` : ''}

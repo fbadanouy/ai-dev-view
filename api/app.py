@@ -34,7 +34,8 @@ GET_ROUTES = [
     ('/api/session/{session_id}/tool-result/{tool_use_id}',    sessions.get_session_tool_result),
 
     ('/api/skills',                                            skills.get_skills_list),
-    ('/api/skills/usage/{skill_name}',                         skills.get_skill_sessions),
+    ('/api/skills/usage/{provider}/{skill_name}',              skills.get_skill_sessions),
+    ('/api/skills/profile/{provider}/{skill_name}',            skills.get_skill_profile),
 
     ('/api/agents',                                            agents.get_agents),
     ('/api/agents/{name}/sessions',                            agents.get_agent_sessions),

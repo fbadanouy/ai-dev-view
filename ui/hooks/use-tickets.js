@@ -1,4 +1,4 @@
-const API = 'http://localhost:8765/api/tickets'
+import { getJson } from '../lib/api.js'
 
 /* Loads all tickets with their nested sessions. */
 export class TicketsController {
@@ -13,9 +13,7 @@ export class TicketsController {
 
   async hostConnected() {
     try {
-      const res = await fetch(API)
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-      this.tickets = await res.json()
+      this.tickets = await getJson('/tickets')
     } catch (e) {
       this.error = e.message
     } finally {

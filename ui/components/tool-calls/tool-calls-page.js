@@ -1,6 +1,9 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
+import { getJson } from '../../lib/api.js'
+import { asyncView } from '../../lib/async-view.js'
 import '../layout/master-detail.js'
 import './tool-card.js'
+import '../sessions/session-mini-row.js'
 
 class ToolCallsPage extends LitElement {
   static properties = {
@@ -9,6 +12,7 @@ class ToolCallsPage extends LitElement {
     detail:       { type: Object },
     loadingTools: { type: Boolean },
     loadingDetail:{ type: Boolean },
+    _error:       { state: true },
   }
 
   constructor() {
@@ -18,33 +22,35 @@ class ToolCallsPage extends LitElement {
     this.detail = null
     this.loadingTools = true
     this.loadingDetail = false
+    this._error = null
   }
 
   createRenderRoot() { return this }
 
   async connectedCallback() {
     super.connectedCallback()
-    const res = await fetch('http://localhost:8765/api/tools')
-    this.tools = await res.json()
-    this.loadingTools = false
+    try {
+      this.tools = await getJson('/tools')
+    } catch (e) {
+      this._error = String(e)
+    } finally {
+      this.loadingTools = false
+    }
   }
 
   async selectTool(tool) {
     this.selected = tool
     this.loadingDetail = true
     this.detail = null
-    const res = await fetch(`http://localhost:8765/api/tools/${encodeURIComponent(tool.tool_name)}`)
-    this.detail = await res.json()
+    this.detail = await getJson(`/tools/${encodeURIComponent(tool.tool_name)}`)
     this.loadingDetail = false
   }
 
   render() {
-    if (this.loadingTools) return html`
-      <div class="flex items-center gap-3 text-dim py-12 px-6">
-        <sl-spinner style="font-size:1.5rem; --track-color:var(--border); --indicator-color:var(--brand)"></sl-spinner>
-      </div>
-    `
+    return asyncView({ loading: this.loadingTools, error: this._error }, () => this._renderBody())
+  }
 
+  _renderBody() {
     const builtins = this.tools.filter(t => !t.mcp_server)
     const mcpGroups = this.tools.filter(t => t.mcp_server).reduce((acc, t) => {
       ;(acc[t.mcp_server] = acc[t.mcp_server] || []).push(t)
@@ -52,7 +58,7 @@ class ToolCallsPage extends LitElement {
     }, {})
 
     return html`
-      <master-detail list-width="260px">
+      <master-detail list-width="16.25rem">
 
         <div slot="list" class="text-xs">
           ${builtins.length ? html`
@@ -149,15 +155,7 @@ class ToolCallsPage extends LitElement {
         <div class="mb-8">
           <div class="text-xs font-semibold text-dim uppercase tracking-widest mb-3">Recent sessions</div>
           <div class="flex flex-col gap-1">
-            ${d.sessions.map(s => html`
-              <div class="flex items-center justify-between px-3 py-2 rounded border border-edge hover:border-edge-strong text-xs">
-                <span class="text-fg truncate max-w-sm">${s.title || 'untitled'}</span>
-                <div class="flex items-center gap-3 flex-shrink-0 ml-3">
-                  <span class="text-sky-400 font-semibold">${s.call_count}x</span>
-                  <span class="text-dim">${new Date(s.updated_at).toLocaleDateString()}</span>
-                </div>
-              </div>
-            `)}
+            ${d.sessions.map(s => html`<session-mini-row .session=${s}></session-mini-row>`)}
           </div>
         </div>
       ` : ''}
