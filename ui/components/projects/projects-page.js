@@ -1,28 +1,43 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { ProjectsController } from '../../hooks/use-projects.js'
-import '../layout/master-detail.js'
-import '../ui/stat-card.js'
-import '../sessions/session-mini-row.js'
-import { CHART_COLORS } from '../ui/time-chart.js'
-import '../ui/time-chart.js'
-import '../ui/provider-badge.js'
+import { SessionsController } from '../../hooks/use-sessions.js'
 import { getJson } from '../../lib/api.js'
 import { provider } from '../../lib/providers.js'
+import '../layout/master-detail.js'
+import '../ui/search-bar.js'
+import '../sessions/session-card.js'
+import '../sessions/session-detail.js'
 
+/* Projects → sessions in that project → full session detail.
+   Mirrors the Tickets page exactly: the detail pane is itself a master-detail,
+   reusing session-card and session-detail as the sessions page does. The
+   project's session ids come from /project-detail; the full session objects
+   (which the cards/detail render) come from SessionsController. */
 class ProjectsPage extends LitElement {
   static properties = {
-    selected:        { type: Object },
-    detail:          { type: Object },
+    selected:        { type: Object },   // selected project
+    selectedSession: { type: Object },
+    detail:          { type: Object },    // /project-detail payload (session ids etc.)
     _loadingDetail:  { state: true },
+    _query:          { state: true },
+    _pinned:         { state: true },     // Set of pinned project ids (localStorage-backed)
   }
 
   _projects = new ProjectsController(this)
+  _sessions = new SessionsController(this)
+
+  constructor() {
+    super()
+    // User preference only — no DB, mirrors how app-shell persists the theme.
+    this._pinned = new Set(JSON.parse(localStorage.getItem('pinnedProjects') || '[]'))
+  }
 
   createRenderRoot() { return this }
 
   async selectProject(p) {
     this.selected = p
-    this.detail   = null
+    this.selectedSession = null
+    this.detail = null
     this._loadingDetail = true
     try {
       this.detail = await getJson(`/project-detail?id=${encodeURIComponent(p.id)}`)
@@ -33,231 +48,136 @@ class ProjectsPage extends LitElement {
     }
   }
 
+  _togglePin(id, e) {
+    e.stopPropagation()   // don't also select the project
+    const next = new Set(this._pinned)
+    next.has(id) ? next.delete(id) : next.add(id)
+    this._pinned = next   // new ref → reactive update
+    localStorage.setItem('pinnedProjects', JSON.stringify([...next]))
+  }
+
   render() {
     const { projects, loading, error } = this._projects
+    const { sessions, maxes, loading: sLoading } = this._sessions
 
-    if (loading) return html`
+    if (loading || sLoading) return html`
       <div class="flex items-center gap-3 text-dim py-12 px-6">
         <sl-spinner style="font-size:1.5rem; --track-color:var(--border); --indicator-color:var(--brand)"></sl-spinner>
+        <span>Loading projects…</span>
       </div>
     `
     if (error) return html`
-      <div class="m-6 bg-red-950 border border-rose-500 rounded-lg p-4 text-red-300 text-sm">
+      <div class="m-6 border border-danger rounded-lg p-4 text-danger text-sm"
+           style="background: color-mix(in srgb, var(--danger) 10%, transparent)">
         Could not reach server.py<br><span class="font-semibold">${error}</span>
       </div>
     `
 
-    return html`
-      <master-detail list-width="17.5rem">
+    const q = (this._query ?? '').trim().toLowerCase()
+    const filtered = q
+      ? projects.filter(p => (p.name || '').toLowerCase().includes(q)
+                          || (p.root_path || '').toLowerCase().includes(q))
+      : projects
+    const pinned = this._pinned
+    // Pinned float to the top; sort is stable so recency order holds within each group.
+    const ordered = [...filtered].sort((a, b) => (pinned.has(b.id) ? 1 : 0) - (pinned.has(a.id) ? 1 : 0))
+    const project = this.selected ?? ordered[0] ?? null
 
-        <div slot="list" class="text-xs">
-          ${projects.map(p => this._row(p))}
+    const byId = new Map(sessions.map(s => [s.session_id, s]))
+    // detail.sessions carries the ids/order for this project; the full session
+    // objects render the cards. Map to full objects, drop any we don't have.
+    const projectSessions = (this.detail?.sessions ?? [])
+      .map(ps => byId.get(ps.session_id))
+      .filter(Boolean)
+    const session = this.selectedSession ?? projectSessions[0] ?? null
+
+    return html`
+      <master-detail list-width="17.5rem" storage-key="md.projects.list">
+
+        <div slot="list">
+          <div class="p-2 border-b border-edge">
+            <search-bar
+              placeholder="Search projects…"
+              .value=${this._query ?? ''}
+              @search=${e => this._query = e.detail.value}
+            ></search-bar>
+          </div>
+          <div class="px-3 py-2 text-xs text-dim border-b border-edge">
+            ${q ? `${filtered.length} of ${projects.length}` : projects.length} projects
+          </div>
+          <div class="p-2 flex flex-col gap-1">
+            ${ordered.map(p => {
+              const isPinned = pinned.has(p.id)
+              const providers = (p.providers ?? '').split(',').filter(Boolean)
+              return html`
+              <div class="group text-left rounded px-3 py-2 border transition-colors cursor-pointer
+                          ${project?.id === p.id
+                            ? 'bg-surface2 border-brand-dim'
+                            : 'bg-transparent border-transparent hover:bg-inset'}"
+                   @click=${() => this.selectProject(p)}>
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <div class="text-sm text-fg font-medium truncate">${p.name}</div>
+                    <div class="text-xs text-dim flex items-center gap-1.5">
+                      ${providers.slice(0, 3).map(pr => html`
+                        <span class="w-1.5 h-1.5 rounded-full" style="background:${provider(pr).color}"></span>
+                      `)}
+                      <span>${p.session_count} session${p.session_count === 1 ? '' : 's'}</span>
+                    </div>
+                  </div>
+                  <button class="flex-shrink-0 mt-0.5 transition-colors
+                                 ${isPinned
+                                   ? 'text-brand'
+                                   : 'text-dim opacity-0 group-hover:opacity-100 hover:text-fg'}"
+                          title=${isPinned ? 'Unpin project' : 'Pin project'}
+                          @click=${e => this._togglePin(p.id, e)}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+                         fill=${isPinned ? 'currentColor' : 'none'} stroke="currentColor"
+                         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 17v5"/>
+                      <path d="M9 10.8V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v5.8l1.5 3.2h-9L9 10.8Z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            `})}
+          </div>
         </div>
 
-        <div slot="detail" class="p-6">
-          ${!this.selected ? html`
-            <div class="flex items-center justify-center h-32 text-dim text-sm">
-              Select a project to explore it
-            </div>
-          ` : this._renderDetail()}
+        <div slot="detail" style="height:100%;display:flex;flex-direction:column">
+          ${project ? html`
+            <master-detail list-width="20rem" style="--md-height:100%" storage-key="md.projects.sessions">
+
+              <div slot="list">
+                <div class="px-3 py-2 text-xs text-dim border-b border-edge">
+                  📁 ${project.name} ·
+                  ${this._loadingDetail
+                    ? html`<sl-spinner style="font-size:0.8rem; vertical-align:middle"></sl-spinner>`
+                    : `${projectSessions.length} session${projectSessions.length === 1 ? '' : 's'}`}
+                </div>
+                <div class="p-2 flex flex-col gap-1">
+                  ${projectSessions.map(s => html`
+                    <session-card
+                      .session=${s}
+                      .maxes=${maxes}
+                      .selected=${session?.session_id === s.session_id}
+                      @click=${() => this.selectedSession = s}
+                    ></session-card>
+                  `)}
+                </div>
+              </div>
+
+              <div slot="detail">
+                <session-detail .session=${session}></session-detail>
+              </div>
+
+            </master-detail>
+          ` : html`
+            <div class="h-full flex items-center justify-center text-dim text-sm">Select a project</div>
+          `}
         </div>
 
       </master-detail>
-    `
-  }
-
-  _row(p) {
-    const isSelected = this.selected?.id === p.id
-    const border = isSelected
-      ? 'border-l-2 border-yellow-500 bg-yellow-900/10'
-      : 'border-l-2 border-transparent hover:bg-surface2'
-    const providers = (p.providers ?? '').split(',').filter(Boolean)
-    return html`
-      <div class="flex items-center justify-between px-3 py-2 cursor-pointer transition-all duration-100 ${border}"
-           @click=${() => this.selectProject(p)}>
-        <div class="flex flex-col min-w-0">
-          <span class="font-mono text-xs text-fg truncate">${p.name}</span>
-          ${p.root_path ? html`<span class="text-[10px] text-dim font-mono truncate">${p.root_path}</span>` : ''}
-        </div>
-        <div class="flex items-center gap-1.5 flex-shrink-0 ml-2">
-          ${providers.slice(0, 2).map(pr => html`
-            <span class="w-1.5 h-1.5 rounded-full" style="background:${provider(pr).color}"></span>
-          `)}
-          <span class="text-xs text-dim">${p.session_count}</span>
-        </div>
-      </div>
-    `
-  }
-
-  _renderActivityChart(ts) {
-    if (!ts || !ts.buckets?.length) return ''
-    // Stacked session bars per provider (matches the analytics hero chart) +
-    // one tool-uses line. Providers with no sessions here drop out automatically.
-    const bars = ['kiro', 'claude', 'codex']
-      .filter(p => (ts.sessions[p] || []).some(v => v != null))
-      .map(p => ({
-        type: 'bar', label: p, data: ts.sessions[p], yAxisID: 'y', order: 2,
-        backgroundColor: CHART_COLORS[p], borderRadius: 3, maxBarThickness: 28,
-      }))
-    const datasets = [
-      ...bars,
-      { type: 'line', label: 'tool uses', data: ts.tool_uses, yAxisID: 'y1', order: 1,
-        borderColor: CHART_COLORS.line, backgroundColor: CHART_COLORS.line,
-        borderWidth: 2, pointRadius: 3, tension: 0.3 },
-    ]
-    const options = {
-      plugins: { legend: { display: true, position: 'bottom',
-                           labels: { boxWidth: 10, boxHeight: 10 } } },
-      scales: {
-        x:  { stacked: true, grid: { display: false } },
-        y:  { stacked: true, beginAtZero: true, grid: { color: CHART_COLORS.grid },
-              ticks: { precision: 0 }, title: { display: true, text: 'sessions' } },
-        y1: { beginAtZero: true, position: 'right', grid: { display: false },
-              title: { display: true, text: 'tool uses' } },
-      },
-    }
-    return html`
-      <div class="mb-8 bg-surface border border-edge rounded-xl p-5">
-        <div class="text-xs text-dim uppercase tracking-widest mb-4">
-          Activity over time <span class="text-muted normal-case">· by ${ts.bucket}</span>
-        </div>
-        <time-chart
-          .labels=${ts.buckets}
-          .datasets=${datasets}
-          .options=${options}
-          .height=${260}
-        ></time-chart>
-      </div>
-    `
-  }
-
-  _renderDetail() {
-    const p = this.selected
-
-    if (this._loadingDetail) return html`
-      <sl-spinner style="font-size:1.2rem; --track-color:var(--border); --indicator-color:var(--brand)"></sl-spinner>
-    `
-
-    if (!this.detail || this.detail.error) return html`
-      <div class="text-red-300 text-sm">${this.detail?.error ?? 'Failed to load detail'}</div>
-    `
-
-    const d = this.detail
-    const providers = (p.providers ?? '').split(',').filter(Boolean)
-    const hasConfig = d.skills?.length || d.agents?.length || d.mcps?.length || d.files?.length
-
-    return html`
-      <!-- Header -->
-      <div class="mb-6">
-        <div class="flex items-center gap-3 mb-1 flex-wrap">
-          <h2 class="font-mono text-lg text-yellow-400">${p.name}</h2>
-          ${providers.map(pr => html`<provider-badge provider=${pr}></provider-badge>`)}
-        </div>
-        ${p.root_path ? html`<div class="text-xs text-dim font-mono">${p.root_path}</div>` : ''}
-      </div>
-
-      <!-- Stats row -->
-      <div class="grid grid-cols-2 gap-3 mb-6">
-        <stat-card label="Sessions"   .value=${p.session_count ?? 0}></stat-card>
-        <stat-card label="Tool uses"  .value=${p.total_tool_uses ?? 0}></stat-card>
-      </div>
-
-      <!-- Sessions & tool uses over time -->
-      ${this._renderActivityChart(d.timeseries)}
-
-      <!-- Models -->
-      ${d.models?.length ? html`
-        <div class="mb-6">
-          <div class="text-xs font-semibold text-dim uppercase tracking-widest mb-2">Models</div>
-          <div class="flex flex-wrap gap-2">
-            ${d.models.map(m => html`
-              <span class="font-mono text-xs px-2 py-1 rounded bg-surface2 border border-edge text-muted">
-                ${m.model_id} <span class="text-dim">(${m.n})</span>
-              </span>
-            `)}
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- Tickets -->
-      ${d.tickets?.length ? html`
-        <div class="mb-6">
-          <div class="text-xs font-semibold text-dim uppercase tracking-widest mb-2">Tickets</div>
-          <div class="flex flex-wrap gap-2">
-            ${d.tickets.map(t => html`
-              <span class="font-mono text-xs px-2 py-1 rounded bg-surface2 border border-edge text-brand">${t.ticket}</span>
-            `)}
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- AI Config -->
-      ${hasConfig ? html`
-        <div class="mb-8">
-          <div class="text-xs font-semibold text-dim uppercase tracking-widest mb-3">Project AI config</div>
-
-          ${d.skills?.length ? html`
-            <div class="mb-4">
-              <div class="text-xs text-muted mb-1">Skills</div>
-              ${d.skills.map(s => html`
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded border border-edge mb-1 text-xs">
-                  <span class="font-mono text-fg">${s.name}</span>
-                  <provider-badge provider=${s.provider}></provider-badge>
-                  ${s.description ? html`<span class="text-dim truncate">${s.description}</span>` : ''}
-                </div>
-              `)}
-            </div>
-          ` : ''}
-
-          ${d.agents?.length ? html`
-            <div class="mb-4">
-              <div class="text-xs text-muted mb-1">Agents</div>
-              ${d.agents.map(a => html`
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded border border-edge mb-1 text-xs">
-                  <span class="font-mono text-fg">${a.name}</span>
-                  <provider-badge provider=${a.provider}></provider-badge>
-                  ${a.description ? html`<span class="text-dim truncate">${a.description}</span>` : ''}
-                </div>
-              `)}
-            </div>
-          ` : ''}
-
-          ${d.mcps?.length ? html`
-            <div class="mb-4">
-              <div class="text-xs text-muted mb-1">MCPs</div>
-              ${d.mcps.map(m => html`
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded border border-edge mb-1 text-xs">
-                  <span class="font-mono text-fg">${m.server}</span>
-                  <provider-badge provider=${m.provider}></provider-badge>
-                  ${m.command ? html`<span class="text-dim font-mono truncate">${m.command}</span>` : ''}
-                </div>
-              `)}
-            </div>
-          ` : ''}
-
-          ${d.files?.length ? html`
-            <div class="mb-4">
-              <div class="text-xs text-muted mb-1">Kiro files</div>
-              ${d.files.map(f => html`
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded border border-edge mb-1 text-xs">
-                  <span class="text-dim">${f.type}</span>
-                  <span class="font-mono text-fg">${f.name}</span>
-                </div>
-              `)}
-            </div>
-          ` : ''}
-        </div>
-      ` : ''}
-
-      <!-- Sessions -->
-      ${d.sessions?.length ? html`
-        <div>
-          <div class="text-xs font-semibold text-dim uppercase tracking-widest mb-3">Sessions</div>
-          <div class="flex flex-col gap-1">
-            ${d.sessions.map(s => html`<session-mini-row .session=${s}></session-mini-row>`)}
-          </div>
-        </div>
-      ` : ''}
     `
   }
 }
