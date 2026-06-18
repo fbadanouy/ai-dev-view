@@ -27,6 +27,12 @@
   --inset:       #0f172a;   /* inputs, chips, code wells */
   --accent-glow: rgba(38, 139, 210, 0.18);   /* selected-card outer glow */
 
+  /* ── semantic signals ───────────────────────────────── */
+  /* Derived: defined once here, they resolve per-theme because every theme
+     redefines --chart-warn / --chart-bad below. No per-theme override needed. */
+  --warn:        var(--chart-warn);   /* caution annotations (e.g. ticket mentions) */
+  --danger:      var(--chart-bad);    /* errors, destructive states */
+
   /* ── providers ──────────────────────────────────────── */
   --provider-kiro:   #787cc9;   /* solarized violet */
   --provider-claude: #d26437;   /* solarized orange */

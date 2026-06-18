@@ -1,7 +1,7 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { TicketsController } from '../../hooks/use-tickets.js'
 import { SessionsController } from '../../hooks/use-sessions.js'
-import { fmtDate } from '../../lib/format.js'
+import { timeAgo } from '../../lib/format.js'
 import '../layout/master-detail.js'
 import '../ui/search-bar.js'
 import '../sessions/session-card.js'
@@ -15,16 +15,31 @@ class TicketsPage extends LitElement {
     selected:        { type: Object },   // selected ticket
     selectedSession: { type: Object },
     _query:          { state: true },
+    _pinned:         { state: true },    // Set of pinned ticket keys (localStorage-backed)
   }
 
   _tickets  = new TicketsController(this)
   _sessions = new SessionsController(this)
+
+  constructor() {
+    super()
+    // User preference only — no DB, mirrors how app-shell persists the theme.
+    this._pinned = new Set(JSON.parse(localStorage.getItem('pinnedTickets') || '[]'))
+  }
 
   createRenderRoot() { return this }
 
   selectTicket(t) {
     this.selected = t
     this.selectedSession = null
+  }
+
+  _togglePin(key, e) {
+    e.stopPropagation()   // don't also select the ticket
+    const next = new Set(this._pinned)
+    next.has(key) ? next.delete(key) : next.add(key)
+    this._pinned = next   // new ref → reactive update
+    localStorage.setItem('pinnedTickets', JSON.stringify([...next]))
   }
 
   render() {
@@ -38,14 +53,18 @@ class TicketsPage extends LitElement {
       </div>
     `
     if (error) return html`
-      <div class="m-6 bg-red-950 border border-rose-500 rounded-lg p-4 text-red-300 text-sm">
+      <div class="m-6 border border-danger rounded-lg p-4 text-danger text-sm"
+           style="background: color-mix(in srgb, var(--danger) 10%, transparent)">
         Could not reach server.py<br><span class="font-semibold">${error}</span>
       </div>
     `
 
     const q = (this._query ?? '').trim().toLowerCase()
     const filtered = q ? tickets.filter(t => t.ticket.toLowerCase().includes(q)) : tickets
-    const ticket = this.selected ?? filtered[0] ?? null
+    const pinned = this._pinned
+    // Pinned float to the top; sort is stable so recency order holds within each group.
+    const ordered = [...filtered].sort((a, b) => (pinned.has(b.ticket) ? 1 : 0) - (pinned.has(a.ticket) ? 1 : 0))
+    const ticket = this.selected ?? ordered[0] ?? null
     const byId = new Map(sessions.map(s => [s.session_id, s]))
     // ticket.sessions carries link/mentions; the full session objects render the cards
     const ticketSessions = (ticket?.sessions ?? [])
@@ -68,20 +87,39 @@ class TicketsPage extends LitElement {
             ${q ? `${filtered.length} of ${tickets.length}` : tickets.length} tickets
           </div>
           <div class="p-2 flex flex-col gap-1">
-            ${filtered.map(t => html`
-              <button class="text-left rounded px-3 py-2 border transition-colors
-                             ${ticket?.ticket === t.ticket
-                               ? 'bg-surface2 border-gold-dim'
-                               : 'bg-transparent border-transparent hover:bg-inset'}"
-                      @click=${() => this.selectTicket(t)}>
-                <div class="text-sm text-fg font-medium">🎫 ${t.ticket}</div>
-                <div class="text-xs text-dim">
-                  ${t.session_count} session${t.session_count === 1 ? '' : 's'}
-                  ${t.mention_count ? html` · ${t.mention_count} mention${t.mention_count === 1 ? '' : 's'}` : ''}
-                  ${t.last_activity ? html` · ${fmtDate(t.last_activity)}` : ''}
+            ${ordered.map(t => {
+              const isPinned = pinned.has(t.ticket)
+              return html`
+              <div class="group text-left rounded px-3 py-2 border transition-colors cursor-pointer
+                          ${ticket?.ticket === t.ticket
+                            ? 'bg-surface2 border-gold-dim'
+                            : 'bg-transparent border-transparent hover:bg-inset'}"
+                   @click=${() => this.selectTicket(t)}>
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <div class="text-sm text-fg font-medium truncate">${t.ticket}</div>
+                    <div class="text-xs text-dim">
+                      ${t.session_count} session${t.session_count === 1 ? '' : 's'}
+                      ${t.mention_count ? html` · ${t.mention_count} mention${t.mention_count === 1 ? '' : 's'}` : ''}
+                      ${t.last_activity ? html` · ${timeAgo(t.last_activity)}` : ''}
+                    </div>
+                  </div>
+                  <button class="flex-shrink-0 mt-0.5 transition-colors
+                                 ${isPinned
+                                   ? 'text-gold'
+                                   : 'text-dim opacity-0 group-hover:opacity-100 hover:text-fg'}"
+                          title=${isPinned ? 'Unpin ticket' : 'Pin ticket'}
+                          @click=${e => this._togglePin(t.ticket, e)}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+                         fill=${isPinned ? 'currentColor' : 'none'} stroke="currentColor"
+                         stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 17v5"/>
+                      <path d="M9 10.8V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v5.8l1.5 3.2h-9L9 10.8Z"/>
+                    </svg>
+                  </button>
                 </div>
-              </button>
-            `)}
+              </div>
+            `})}
           </div>
         </div>
 
@@ -97,7 +135,7 @@ class TicketsPage extends LitElement {
                   ${ticketSessions.map(s => html`
                     <div>
                       ${s.link === 'mention' ? html`
-                        <div class="px-3 pt-1 text-xs text-amber-500/70">
+                        <div class="px-3 pt-1 text-xs text-warn">
                           mentioned only ×${s.mentions} — primary ticket: ${s.ticket ?? 'none'}
                         </div>` : ''}
                       <session-card
