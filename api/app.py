@@ -87,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        qs = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+        qs = {k: v[0] for k, v in parse_qs(parsed.query, keep_blank_values=True).items()}
         path = parsed.path
         for pattern, fn in GET_ROUTES:
             params = match(pattern, path)

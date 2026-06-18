@@ -11,9 +11,8 @@
  *  same config renders cleanly whether or not a `---` header is present.
  *
  *  Honest-by-construction: `budget: true` tiers get a real status only for types
- *  with a DOCUMENTED budget (see BUDGETS in file-health.js). `docs.url` and the
- *  free-text recommendations are placeholders — fill them with official links
- *  and verbatim guidance later.
+ *  with a DOCUMENTED budget (see BUDGETS in file-health.js). A `docs.url` links to
+ *  the official spec for that type; an empty url hides the link (no dead anchor).
  *
  *  measure: 'meta'      → frontmatter block
  *           'body'      → everything after frontmatter
@@ -30,7 +29,7 @@ export const TYPE_CONTEXT = {
       { measure: 'body',      label: 'Instructions', when: 'loaded when the skill is activated',  color: '#b58900', budget: true },
       { measure: 'resources', label: 'Resources',    when: 'loaded only as a task requires them', color: '#787cc9' },
     ],
-    docs: { label: 'Skills documentation', url: '' },
+    docs: { label: 'Skills documentation', url: 'https://agentskills.io/specification#progressive-disclosure' },
     note: '', // e.g. 'Keep SKILL.md under 500 lines (~5,000 tokens).'
   },
 
@@ -41,7 +40,7 @@ export const TYPE_CONTEXT = {
       { measure: 'meta', label: 'Metadata',      when: 'frontmatter (name, model, tools…)',     color: '#2aa198' },
       { measure: 'body', label: 'System prompt', when: 'loaded when the subagent is spawned',    color: '#b58900' },
     ],
-    docs: { label: 'Subagents documentation', url: '' },
+    docs: { label: 'Subagents documentation', url: 'https://code.claude.com/docs/en/sub-agents' },
     note: 'Subagents have no documented size budget — each runs in its own 200k-token context.',
   },
 
@@ -52,7 +51,7 @@ export const TYPE_CONTEXT = {
       { measure: 'meta', label: 'Metadata', when: 'frontmatter (inclusion rules…)', color: '#2aa198' },
       { measure: 'body', label: 'Guidance', when: 'steering context for the agent',  color: '#b58900' },
     ],
-    docs: { label: 'Steering documentation', url: '' },
+    docs: { label: 'Steering documentation', url: 'https://kiro.dev/docs/steering/' },
     note: '',
   },
 
@@ -62,7 +61,7 @@ export const TYPE_CONTEXT = {
     tiers: [
       { measure: 'file', label: 'Instructions', when: 'loaded into every session', color: '#b58900', budget: true },
     ],
-    docs: { label: 'Memory & instructions documentation', url: '' },
+    docs: { label: 'Memory & instructions documentation', url: 'https://code.claude.com/docs/en/memory' },
     note: '',
   },
 
@@ -72,7 +71,7 @@ export const TYPE_CONTEXT = {
     tiers: [
       { measure: 'file', label: 'Configuration', when: 'loaded across the workspace', color: '#b58900', budget: true },
     ],
-    docs: { label: 'Configuration documentation', url: '' },
+    docs: { label: 'AGENTS.md documentation', url: 'https://agents.md/#examples' },
     note: '',
   },
 

@@ -94,7 +94,7 @@ class ContextLoad extends LitElement {
   }
 
   _recommendation(cfg, health) {
-    if (!health && !cfg.note && !cfg.docs) return ''
+    if (!health && !cfg.note && !cfg.docs?.url) return ''
 
     return html`
       <div class="mt-2 pt-2 border-t border-edge/50 flex items-center gap-2 text-xs">
@@ -105,9 +105,9 @@ class ContextLoad extends LitElement {
           <span class="text-dim truncate" title=${cfg.note}>${cfg.note}</span>
         ` : ''}
 
-        ${cfg.docs ? html`
-          <a href=${cfg.docs.url || '#'} target=${cfg.docs.url ? '_blank' : '_self'} rel="noreferrer"
-             class="ml-auto flex-shrink-0 inline-flex items-center gap-1 ${cfg.docs.url ? '' : 'pointer-events-none opacity-40'}"
+        ${cfg.docs?.url ? html`
+          <a href=${cfg.docs.url} target="_blank" rel="noreferrer"
+             class="ml-auto flex-shrink-0 inline-flex items-center gap-1"
              style="color:var(--accent, #c9a227)">
             docs<span aria-hidden="true">↗</span>
           </a>
