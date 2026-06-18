@@ -92,7 +92,7 @@ class TicketsPage extends LitElement {
               return html`
               <div class="group text-left rounded px-3 py-2 border transition-colors cursor-pointer
                           ${ticket?.ticket === t.ticket
-                            ? 'bg-surface2 border-gold-dim'
+                            ? 'bg-surface2 border-brand-dim'
                             : 'bg-transparent border-transparent hover:bg-inset'}"
                    @click=${() => this.selectTicket(t)}>
                 <div class="flex items-start justify-between gap-2">
@@ -106,7 +106,7 @@ class TicketsPage extends LitElement {
                   </div>
                   <button class="flex-shrink-0 mt-0.5 transition-colors
                                  ${isPinned
-                                   ? 'text-gold'
+                                   ? 'text-brand'
                                    : 'text-dim opacity-0 group-hover:opacity-100 hover:text-fg'}"
                           title=${isPinned ? 'Unpin ticket' : 'Pin ticket'}
                           @click=${e => this._togglePin(t.ticket, e)}>

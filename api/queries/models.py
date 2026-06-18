@@ -16,7 +16,10 @@ def get_models():
             COALESCE(vm.total_tool_uses, 0)   AS total_tool_uses,
             COALESCE(vm.avg_duration_mins, 0) AS avg_duration_mins,
             COALESCE(vm.avg_context_pct, 0)   AS avg_context_pct,
-            vm.last_used
+            vm.last_used,
+            -- provider comes from the real sessions that used this model
+            -- (each model_id maps to exactly one provider); NULL if never used.
+            (SELECT s.provider FROM sessions s WHERE s.model = m.model_id LIMIT 1) AS provider
         FROM models m
         LEFT JOIN v_model_analytics vm ON vm.model_id = m.model_id
         ORDER BY COALESCE(vm.total_sessions, 0) DESC

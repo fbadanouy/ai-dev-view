@@ -3,6 +3,7 @@ import Chart from 'https://cdn.jsdelivr.net/npm/chart.js@4/auto/+esm'
 import { getJson } from '../../lib/api.js'
 import { asyncView } from '../../lib/async-view.js'
 import { CHART_COLORS as C } from '../ui/time-chart.js'
+import '../models/model-card.js'
 
 /*  <analytics-page>
  *
@@ -34,6 +35,7 @@ class AnalyticsPage extends LitElement {
     _bucket: { state: true },
     _metric: { state: true },
     _error:  { state: true },
+    _models: { state: true },
   }
 
   constructor() {
@@ -48,6 +50,12 @@ class AnalyticsPage extends LitElement {
   connectedCallback() {
     super.connectedCallback()
     this.load()
+    this.loadModels()
+  }
+
+  // Same endpoint the Models tab uses; bucket-independent, so fetched once.
+  async loadModels() {
+    try { this._models = await getJson('/models') } catch { /* section just hides */ }
   }
 
   disconnectedCallback() {
@@ -116,25 +124,34 @@ class AnalyticsPage extends LitElement {
     this.chart('claude', {
       type: 'line',
       data: { labels: d.buckets, datasets: [
-        line('in',          d.claude.input,       C.blue),
-        line('out',         d.claude.output,      C.green),
-        line('cache read',  d.claude.cache_read,  C.yellow),
-        line('cache write', d.claude.cache_write, C.orange),
+        line('in',          d.claude.input,       C.blue,   { yAxisID: 'y1' }),
+        line('out',         d.claude.output,      C.green,  { yAxisID: 'y1' }),
+        line('cache read',  d.claude.cache_read,  C.yellow, { yAxisID: 'y'  }),
+        line('cache write', d.claude.cache_write, C.orange, { yAxisID: 'y1' }),
       ]},
+      // cache read dwarfs the rest, so it gets its own (left) axis; in/out/cache
+      // write share the right axis where they're actually readable.
       options: { responsive: true, maintainAspectRatio: false,
                  scales: { x: { grid: { display: false } },
-                           y: { grid: { color: C.grid }, beginAtZero: true } } },
+                           y:  { grid: { color: C.grid }, beginAtZero: true,
+                                 title: { display: true, text: 'cache read' } },
+                           y1: { position: 'right', beginAtZero: true, grid: { display: false },
+                                 title: { display: true, text: 'in / out / cache write' } } } },
     })
 
     this.chart('codex', {
       type: 'line',
       data: { labels: d.buckets, datasets: [
-        line('total tokens', d.codex.total,     C.blue),
-        line('reasoning',    d.codex.reasoning, C.magenta),
+        line('total tokens', d.codex.total,     C.blue,    { yAxisID: 'y'  }),
+        line('reasoning',    d.codex.reasoning, C.magenta, { yAxisID: 'y1' }),
       ]},
+      // reasoning is on a much smaller scale than total tokens — give it its own axis.
       options: { responsive: true, maintainAspectRatio: false,
                  scales: { x: { grid: { display: false } },
-                           y: { grid: { color: C.grid }, beginAtZero: true } } },
+                           y:  { grid: { color: C.grid }, beginAtZero: true,
+                                 title: { display: true, text: 'total tokens' } },
+                           y1: { position: 'right', beginAtZero: true, grid: { display: false },
+                                 title: { display: true, text: 'reasoning' } } } },
     })
 
     this.chart('kiro', {
@@ -155,6 +172,41 @@ class AnalyticsPage extends LitElement {
   chart(id, config) {
     const canvas = this.querySelector(`#chart-${id}`)
     if (canvas) this._charts.push(new Chart(canvas, config))
+  }
+
+  /* Leaders per metric, each rendered as the full Models-tab card. Bars are
+     scaled to the same maxes the Models tab uses, over all used models, so the
+     ratios stay comparable. All arithmetic is over real /api/models totals. */
+  _renderTopModels() {
+    const models = (this._models ?? []).filter(m => m.total_sessions > 0)
+    if (!models.length) return ''
+    const per = (n, d) => (d ? n / d : 0)
+    const maxes = {
+      sessions:      Math.max(...models.map(m => m.total_sessions), 1),
+      tools_per:     Math.max(...models.map(m => per(m.total_tool_uses, m.total_sessions)), 1),
+      msgs_per:      Math.max(...models.map(m => per(m.total_messages, m.total_sessions)), 1),
+      tools_per_msg: Math.max(...models.map(m => per(m.total_tool_uses, m.total_messages)), 1),
+      duration:      Math.max(...models.map(m => m.avg_duration_mins || 0), 1),
+    }
+    const leader = fn => models.reduce((a, b) => (fn(b) > fn(a) ? b : a))
+    const tops = [
+      { label: 'Most used',       m: leader(m => m.total_sessions) },
+      { label: 'Most messages/ses', m: leader(m => per(m.total_messages, m.total_sessions)) },
+      { label: 'Most tools/ses',  m: leader(m => per(m.total_tool_uses, m.total_sessions)) },
+    ]
+    return html`
+      <div class="bg-surface border border-edge rounded-xl p-5">
+        <div class="text-xs text-dim uppercase tracking-widest mb-4">Top models</div>
+        <div class="grid gap-3 grid-cols-1 md:grid-cols-3">
+          ${tops.map(t => html`
+            <div class="flex flex-col gap-2">
+              <span class="text-[10px] uppercase tracking-widest text-dim">${t.label}</span>
+              <model-card .model=${t.m} .maxes=${maxes}></model-card>
+            </div>
+          `)}
+        </div>
+      </div>
+    `
   }
 
   render() {
@@ -204,6 +256,9 @@ class AnalyticsPage extends LitElement {
             </div>
           `)}
         </div>
+
+        <!-- Top models: leaders per metric, as Models-tab cards (from /api/models) -->
+        ${this._renderTopModels()}
 
       </div>
     `

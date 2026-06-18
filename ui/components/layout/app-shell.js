@@ -72,7 +72,7 @@ class AppShell extends LitElement {
                      transition-colors
                      ${this._sync === 'error'
                        ? 'border-edge text-[var(--stat-err)]'
-                       : 'border-edge text-dim hover:text-fg hover:border-edge-strong'}
+                       : 'border-brand-dim text-brand hover:border-brand'}
                      ${this._sync === 'busy' ? 'cursor-wait opacity-70' : 'cursor-pointer'}"
             >
               <span class="${this._sync === 'busy' ? 'animate-spin' : ''}">↻</span>

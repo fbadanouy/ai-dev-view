@@ -20,7 +20,7 @@ class SearchBar extends LitElement {
     return html`
       <input type="search"
              class="w-full bg-inset border border-edge rounded px-3 py-1.5 text-sm
-                    text-fg placeholder-dim focus:outline-none focus:border-gold-dim"
+                    text-fg placeholder-dim focus:outline-none focus:border-brand-dim"
              placeholder=${this.placeholder ?? 'Search…'}
              .value=${this.value ?? ''}
              @input=${e => this.emit(e.target.value)} />

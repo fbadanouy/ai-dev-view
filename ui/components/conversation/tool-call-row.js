@@ -78,7 +78,7 @@ class ToolCallRow extends LitElement {
                 this._full ? fullResultText(this._full.result ?? this._full) : tc.result_preview
               }</pre>` : ''}
             ${tc.result_truncated && !this._full ? html`
-              <button class="self-start text-[11px] text-gold hover:underline"
+              <button class="self-start text-[11px] text-brand hover:underline"
                       ?disabled=${this._loadingFull}
                       @click=${e => this.loadFull(e)}>
                 ${this._loadingFull ? 'loading…' : `show full result (${fmtBytes(tc.result_bytes)})`}

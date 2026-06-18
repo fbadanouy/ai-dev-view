@@ -1,5 +1,6 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { fmtDate } from '../../lib/format.js'
+import { provider } from '../../lib/providers.js'
 import '../ui/stat-bar.js'
 
 /*  <model-card>
@@ -29,21 +30,12 @@ class ModelCard extends LitElement {
     const toolsPer    = m.total_sessions ? r1(m.total_tool_uses / m.total_sessions) : 0
     const msgsPer     = m.total_sessions ? r1(m.total_messages  / m.total_sessions) : 0
     const toolsPerMsg = m.total_messages ? r1(m.total_tool_uses / m.total_messages) : 0
-    const premium     = (m.rate_multiplier || 1) > 1.5
-    const is1M        = (m.context_window_tokens || 0) >= 1_000_000
 
     return html`
       <div class="border border-edge rounded-xl p-5 hover:border-edge-strong transition-colors">
 
         <div class="flex items-center gap-2 flex-wrap mb-3">
-          <span class="font-mono text-xs font-semibold text-fg truncate flex-1">${m.model_id}</span>
-          ${m.rate_multiplier ? html`
-            <span class="text-xs px-1.5 py-0.5 rounded border
-                         ${premium ? 'text-provider-kiro border-current' : 'text-dim border-edge'}">
-              ${m.rate_multiplier}×${premium ? ' premium' : ''}
-            </span>` : ''}
-          ${is1M ? html`
-            <span class="text-xs px-1.5 py-0.5 rounded border text-[var(--stat-ctx)] border-current">1M ctx</span>` : ''}
+          <span class="font-mono text-xs font-semibold truncate flex-1 ${provider(m.provider).text}">${m.model_id}</span>
         </div>
 
         <div class="flex flex-col gap-0.5">
