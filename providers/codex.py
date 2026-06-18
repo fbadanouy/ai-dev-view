@@ -251,6 +251,12 @@ def _parse_codex_session(jl):
         if rtype == 'turn_context':
             current_tc_model = p.get('model')
             current_tc_cwd   = p.get('cwd')
+            # Newer Codex emits turn_context AFTER task_started, so the model wasn't
+            # known when the turn opened. Back-fill the active turn's model here.
+            if active_turn_id and current_tc_model:
+                td = turns_map.get(active_turn_id)
+                if td and not td.get('model'):
+                    td['model'] = current_tc_model
             continue
 
         if rtype == 'event_msg':

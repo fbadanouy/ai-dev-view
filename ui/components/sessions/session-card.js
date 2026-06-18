@@ -33,7 +33,10 @@ class SessionCard extends LitElement {
         <div class="flex items-center gap-2 text-xs mb-1">
           ${s.model ? html`
             <span class="font-semibold tracking-wide flex-1 min-w-0 truncate ${provider(s.provider).text}">${s.model}</span>
-          ` : html`<span class="flex-1"></span>`}
+          ` : html`
+            <span class="font-semibold tracking-wide flex-1 min-w-0 truncate ${provider(s.provider).text} opacity-50"
+                  title="model not recorded for this session">${provider(s.provider).label}</span>
+          `}
           <span class="text-dim flex-shrink-0" title="${fmtDate(s.updated)}">${timeAgo(s.updated)}</span>
         </div>
 
