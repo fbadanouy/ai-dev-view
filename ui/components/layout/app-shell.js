@@ -15,11 +15,28 @@ import '../mcps/mcps-page.js'
 // One entry per [data-theme] block in ui/theme.css ('default' = :root).
 const THEMES = ['default', 'cyber-hearth', 'dusk-protocol', 'parchment-sepia', 'nordic-daylight', 'hollywood-os', 'acid-moss', 'sakura-cli']
 
+// localStorage key for the last successful sync (epoch ms); sessionStorage key
+// marks the one reload a sync triggers, so auto-sync-on-open doesn't loop.
+const LAST_SYNC_KEY = 'lastSync'
+const JUST_SYNCED_KEY = 'justSynced'
+
+function timeAgo(ms) {
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000))
+  if (s < 5)    return 'just now'
+  if (s < 60)   return `${s}s ago`
+  const m = Math.round(s / 60)
+  if (m < 60)   return `${m}m ago`
+  const h = Math.round(m / 60)
+  if (h < 24)   return `${h}h ago`
+  return `${Math.round(h / 24)}d ago`
+}
+
 class AppShell extends LitElement {
   static properties = {
-    page:    { type: String },
-    _theme:  { state: true },
-    _sync:   { state: true },   // null | 'busy' | 'error'
+    page:      { type: String },
+    _theme:    { state: true },
+    _sync:     { state: true },   // null | 'busy' | 'error'
+    _lastSync: { state: true },   // epoch ms | null
   }
 
   constructor() {
@@ -27,9 +44,30 @@ class AppShell extends LitElement {
     this.page = 'sessions'
     this._theme = localStorage.getItem('theme') ?? 'default'
     this._sync = null
+    const stored = localStorage.getItem(LAST_SYNC_KEY)
+    this._lastSync = stored ? Number(stored) : null
   }
 
   createRenderRoot() { return this }
+
+  connectedCallback() {
+    super.connectedCallback()
+    // Re-render the relative timestamp every 30s so "Xm ago" stays current.
+    this._tick = setInterval(() => this.requestUpdate(), 30_000)
+
+    // Auto-sync on every page open / refresh — but a sync ends in a reload,
+    // so skip the run that *is* that reload (flagged in sessionStorage).
+    if (sessionStorage.getItem(JUST_SYNCED_KEY)) {
+      sessionStorage.removeItem(JUST_SYNCED_KEY)
+    } else {
+      this.sync()
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    clearInterval(this._tick)
+  }
 
   setTheme(name) {
     this._theme = name
@@ -48,6 +86,8 @@ class AppShell extends LitElement {
     try {
       const data = await postJson('/ingest')
       if (!data.success) throw new Error(data.error ?? 'ingest failed')
+      localStorage.setItem(LAST_SYNC_KEY, String(Date.now()))
+      sessionStorage.setItem(JUST_SYNCED_KEY, '1')   // skip auto-sync on the reload below
       location.reload()   // simplest full data refresh — every page refetches
     } catch (e) {
       console.error('sync failed:', e)
@@ -64,6 +104,13 @@ class AppShell extends LitElement {
           <div class="flex items-center justify-between mb-4">
             <h1 class="font-mono text-2xl text-brand tracking-tight">ai-dev-view</h1>
             <div class="flex items-center gap-4">
+            ${this._lastSync
+              ? html`<span
+                  class="text-xs text-dim font-mono ${Date.now() - this._lastSync < 3_600_000 ? 'opacity-50' : ''}"
+                  title="Last synced ${new Date(this._lastSync).toLocaleString()}">
+                  synced ${timeAgo(this._lastSync)}
+                </span>`
+              : ''}
             <button
               @click=${() => this.sync()}
               ?disabled=${this._sync === 'busy'}

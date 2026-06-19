@@ -31,7 +31,7 @@ python3 server.py
 
 Open your browser and navigate to: http://localhost:8765
 
-> **Note:** To refresh data hit the sync button on the UI (top right, next to theme selector) or run `python3 ingest.py` at any time.
+> **Note:** To refresh data just refresh the page or hit the sync button on the UI (top right, next to theme selector) or run `python3 ingest.py` at any time.
 
 ## ✨ Features
 
