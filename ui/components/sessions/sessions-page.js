@@ -48,8 +48,8 @@ class SessionsPage extends LitElement {
     return html`
       <master-detail list-width="20rem">
 
-        <div slot="list">
-          <div class="p-2 border-b border-edge sticky top-0 z-10 bg-surface">
+        <div slot="list" class="flex flex-col h-full">
+          <div class="p-2 border-b border-edge">
             <search-bar
               placeholder="Search titles or tickets…"
               .value=${this._query ?? ''}
@@ -69,7 +69,7 @@ class SessionsPage extends LitElement {
               </select>
             ` : ''}
           </div>
-          <div class="p-2 flex flex-col gap-1">
+          <div class="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
             ${filtered.map(s => html`
               <session-card
                 .session=${s}

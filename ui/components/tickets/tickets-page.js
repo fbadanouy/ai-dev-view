@@ -75,8 +75,8 @@ class TicketsPage extends LitElement {
     return html`
       <master-detail list-width="15rem">
 
-        <div slot="list">
-          <div class="p-2 border-b border-edge sticky top-0 z-10 bg-surface">
+        <div slot="list" class="flex flex-col h-full">
+          <div class="p-2 border-b border-edge">
             <search-bar
               placeholder="Search tickets…"
               .value=${this._query ?? ''}
@@ -86,7 +86,7 @@ class TicketsPage extends LitElement {
           <div class="px-3 py-2 text-xs text-dim border-b border-edge">
             ${q ? `${filtered.length} of ${tickets.length}` : tickets.length} tickets
           </div>
-          <div class="p-2 flex flex-col gap-1">
+          <div class="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
             ${ordered.map(t => {
               const isPinned = pinned.has(t.ticket)
               return html`
@@ -128,11 +128,11 @@ class TicketsPage extends LitElement {
           ${ticket ? html`
             <master-detail list-width="20rem" style="--md-height:100%">
 
-              <div slot="list">
+              <div slot="list" class="flex flex-col h-full">
                 <div class="px-3 py-2 text-xs text-dim border-b border-edge">
                   🎫 ${ticket.ticket} · ${ticketSessions.length} session${ticketSessions.length === 1 ? '' : 's'}
                 </div>
-                <div class="p-2 flex flex-col gap-1">
+                <div class="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
                   ${ticketSessions.map(s => html`
                     <div>
                       ${s.link === 'mention' ? html`

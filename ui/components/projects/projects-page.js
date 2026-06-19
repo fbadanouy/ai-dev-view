@@ -108,8 +108,8 @@ class ProjectsPage extends LitElement {
     return html`
       <master-detail list-width="17.5rem" storage-key="md.projects.list">
 
-        <div slot="list">
-          <div class="p-2 border-b border-edge sticky top-0 z-10 bg-surface">
+        <div slot="list" class="flex flex-col h-full">
+          <div class="p-2 border-b border-edge">
             <search-bar
               placeholder="Search projects…"
               .value=${this._query ?? ''}
@@ -119,7 +119,7 @@ class ProjectsPage extends LitElement {
           <div class="px-3 py-2 text-xs text-dim border-b border-edge">
             ${q ? `${filtered.length} of ${projects.length}` : projects.length} projects
           </div>
-          <div class="p-2 flex flex-col gap-1">
+          <div class="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
             ${ordered.map(p => {
               const isPinned = pinned.has(p.id)
               const providers = (p.providers ?? '').split(',').filter(Boolean)
@@ -163,14 +163,14 @@ class ProjectsPage extends LitElement {
           ${project ? html`
             <master-detail list-width="20rem" style="--md-height:100%" storage-key="md.projects.sessions">
 
-              <div slot="list">
+              <div slot="list" class="flex flex-col h-full">
                 <div class="px-3 py-2 text-xs text-dim border-b border-edge">
                   📁 ${project.name} ·
                   ${this._loadingDetail
                     ? html`<sl-spinner style="font-size:0.8rem; vertical-align:middle"></sl-spinner>`
                     : `${projectSessions.length} session${projectSessions.length === 1 ? '' : 's'}`}
                 </div>
-                <div class="p-2 flex flex-col gap-1">
+                <div class="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1">
                   ${projectSessions.map(s => html`
                     <session-card
                       .session=${s}

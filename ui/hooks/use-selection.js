@@ -59,21 +59,29 @@ export class SelectionController {
     if (id == null || id === this._revealedId) return
     const el = this.host.querySelector(this.scrollSelector)
     if (!el) return
-    const md = el.closest('master-detail')
-    await md?.updateComplete   // its shadow-DOM scroll container is laid out now
-    // A freshly-mounted nested master-detail (the inner sessions pane) needs a
-    // frame for its .list to reach full height; wait one before measuring.
+    await el.closest('master-detail')?.updateComplete   // pane laid out now
+    // A freshly-mounted nested pane needs a frame for its scroll area to reach
+    // full height; wait one before measuring.
     await new Promise(requestAnimationFrame)
-    const list = md?.renderRoot?.querySelector('.list')
-    if (list && list.clientHeight === 0) return   // not laid out yet → retry next update
-    // Top-bias: scroll the .list container so the card sits near its top.
-    if (list) {
-      list.scrollTop += el.getBoundingClientRect().top - list.getBoundingClientRect().top - 8
+    const scroller = scrollParent(el)
+    if (scroller && scroller.clientHeight === 0) return   // not laid out yet → retry next update
+    // Top-bias: scroll the card near the top of its scroll area. The search bar
+    // lives outside this area, so nothing overlaps it.
+    if (scroller) {
+      scroller.scrollTop += el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 8
     }
-    // Safety net: nudge the card fully into view if it's still clipped (e.g. the
-    // very last row, which can't be top-aligned). block:'nearest' is a no-op when
-    // the card is already visible, so it preserves the top-bias above.
+    // Safety net: nudge fully into view if still clipped (e.g. the very last row,
+    // which can't be top-aligned). block:'nearest' is a no-op when already visible.
     el.scrollIntoView({ block: 'nearest' })
     this._revealedId = id
   }
+}
+
+/* Nearest scrollable ancestor of el (the list's overflow-y-auto container). */
+function scrollParent(el) {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p
+  }
+  return null
 }
