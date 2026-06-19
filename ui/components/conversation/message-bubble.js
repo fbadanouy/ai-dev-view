@@ -1,7 +1,7 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { cleanClaudeText } from '../../lib/clean-claude-text.js'
 import '../ui/message-text.js'
-import './tool-call-row.js'
+import './tool-call-list.js'
 
 /*  <message-bubble>
  *
@@ -79,12 +79,11 @@ class MessageBubble extends LitElement {
 
         ${expanded ? html`
           <div class="mt-2" @click=${e => e.stopPropagation()}>
-            <message-text .text=${m.text}></message-text>
+            <message-text .text=${m.text} ?markdown=${!isUser}></message-text>
             ${tools.length ? html`
-              <div class="flex flex-col gap-1 ${clean ? 'mt-2' : ''}">
-                ${tools.map(tc => html`
-                  <tool-call-row .toolCall=${tc} session-id=${this.sessionId}></tool-call-row>`)}
-              </div>` : ''}
+              <tool-call-list class="block ${clean ? 'mt-2' : ''}" .calls=${tools}
+                              session-id=${this.sessionId}
+                              ?force-expanded=${this.forceExpanded}></tool-call-list>` : ''}
           </div>` : ''}
       </div>
     `

@@ -1,4 +1,6 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
+import { unsafeHTML } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
+import { marked } from 'https://cdn.jsdelivr.net/npm/marked@12/lib/marked.esm.js'
 import { cleanClaudeText } from '../../lib/clean-claude-text.js'
 
 /*  <message-text>
@@ -9,6 +11,8 @@ import { cleanClaudeText } from '../../lib/clean-claude-text.js'
  *  Props:
  *    text     String   raw message text (may contain harness XML tags)
  *    preview  Boolean  single-line truncated mode (for collapsed bubbles)
+ *    markdown Boolean  render prose as markdown (assistant messages, full mode
+ *                      only — never affects preview or harness-stripped chips)
  *
  *  Annotation chip colours by type:
  *    command  → indigo   (slash commands the user invoked)
@@ -26,8 +30,9 @@ const CHIP_STYLES = {
 
 class MessageText extends LitElement {
   static properties = {
-    text:    { type: String },
-    preview: { type: Boolean },
+    text:     { type: String },
+    preview:  { type: Boolean },
+    markdown: { type: Boolean },
   }
 
   createRenderRoot() { return this }
@@ -51,9 +56,10 @@ class MessageText extends LitElement {
 
     // Full mode: prose block + annotation chips
     return html`
-      ${clean ? html`
-        <div class="whitespace-pre-wrap break-words leading-relaxed text-fg">${clean}</div>
-      ` : ''}
+      ${clean ? (this.markdown
+        ? html`<div class="md break-words text-fg">${unsafeHTML(marked.parse(clean))}</div>`
+        : html`<div class="whitespace-pre-wrap break-words leading-relaxed text-fg">${clean}</div>`)
+      : ''}
 
       ${annotations.length ? html`
         <div class="flex flex-wrap gap-1.5 ${clean ? 'mt-2' : ''}">
