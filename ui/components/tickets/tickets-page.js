@@ -76,7 +76,7 @@ class TicketsPage extends LitElement {
       <master-detail list-width="15rem">
 
         <div slot="list">
-          <div class="p-2 border-b border-edge">
+          <div class="p-2 border-b border-edge sticky top-0 z-10 bg-surface">
             <search-bar
               placeholder="Search tickets…"
               .value=${this._query ?? ''}
