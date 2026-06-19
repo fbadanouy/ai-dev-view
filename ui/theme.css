@@ -70,6 +70,16 @@
   --palette-8: #b58900;
 }
 
+/*  Scrollbars track the active theme. scrollbar-color / scrollbar-width are
+ *  inherited properties, so setting them on <html> cascades to every scroll
+ *  area — including shadow roots like <master-detail>. The colors resolve from
+ *  --border-strong / --surface, which every theme redefines, so all themes
+ *  (light and dark) get matching scrollbars with no per-theme override. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) var(--surface);
+}
+
 /*  Example second theme — uncomment, tweak, and set
  *  localStorage.theme = 'mono' in the devtools console to try it.
  *
