@@ -12,7 +12,9 @@ class MasterDetail extends LitElement {
   static styles = css`
     :host {
       display: flex;
-      /* offset in rem so it tracks the header height at any UI scale */
+      /* _fit() measures the real header offset and sets --md-height in px, so the
+         list fits the viewport exactly (no magic header-height constant). Nested
+         master-details pass --md-height:100% inline and keep it. */
       height: var(--md-height, calc(100vh - 7.5rem));
       overflow: hidden;
     }
@@ -50,6 +52,7 @@ class MasterDetail extends LitElement {
     this._width = null
     this._onMove = this._onMove.bind(this)
     this._onUp = this._onUp.bind(this)
+    this._fit = this._fit.bind(this)
   }
 
   connectedCallback() {
@@ -58,6 +61,18 @@ class MasterDetail extends LitElement {
       const saved = parseInt(localStorage.getItem(this.storageKey) || '', 10)
       if (Number.isFinite(saved)) this._width = saved
     }
+    window.addEventListener('resize', this._fit)
+  }
+
+  firstUpdated() { this._fit() }
+
+  /* Size the host to fill from its own top to the viewport bottom, so the list
+     scroll area never runs off-screen. Skips nested master-details, which set
+     --md-height:100% inline to fill their parent's detail pane. */
+  _fit() {
+    if (this.style.getPropertyValue('--md-height')) return
+    const top = this.getBoundingClientRect().top
+    this.style.setProperty('--md-height', `${Math.max(0, window.innerHeight - top)}px`)
   }
 
   _onDown(e) {
@@ -92,6 +107,7 @@ class MasterDetail extends LitElement {
     super.disconnectedCallback()
     window.removeEventListener('pointermove', this._onMove)
     window.removeEventListener('pointerup', this._onUp)
+    window.removeEventListener('resize', this._fit)
   }
 
   render() {

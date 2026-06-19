@@ -1,6 +1,7 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { ProjectsController } from '../../hooks/use-projects.js'
 import { SessionsController } from '../../hooks/use-sessions.js'
+import { SelectionController } from '../../hooks/use-selection.js'
 import { getJson } from '../../lib/api.js'
 import { provider } from '../../lib/providers.js'
 import '../layout/master-detail.js'
@@ -16,7 +17,6 @@ import '../sessions/session-detail.js'
 class ProjectsPage extends LitElement {
   static properties = {
     selected:        { type: Object },   // selected project
-    selectedSession: { type: Object },
     detail:          { type: Object },    // /project-detail payload (session ids etc.)
     _loadingDetail:  { state: true },
     _query:          { state: true },
@@ -25,6 +25,8 @@ class ProjectsPage extends LitElement {
 
   _projects = new ProjectsController(this)
   _sessions = new SessionsController(this)
+  _sel        = new SelectionController(this, 'sel.projects', p => p.id, { scrollSelector: '[data-sel-project]' })
+  _selSession = new SelectionController(this, 'sel.projects.session', s => s.session_id, { scrollSelector: '[data-sel-session]' })
 
   constructor() {
     super()
@@ -34,9 +36,20 @@ class ProjectsPage extends LitElement {
 
   createRenderRoot() { return this }
 
+  // Once projects load, replay the remembered selection so its sessions load —
+  // detail is fetched by selectProject, so a plain id restore isn't enough.
+  updated() {
+    if (this._replayed) return
+    const { projects, loading } = this._projects
+    if (loading || !projects?.length) return
+    this._replayed = true
+    const saved = this._sel.find(projects)
+    if (saved) this.selectProject(saved)
+  }
+
   async selectProject(p) {
     this.selected = p
-    this.selectedSession = null
+    this._sel.remember(p)
     this.detail = null
     this._loadingDetail = true
     try {
@@ -89,7 +102,8 @@ class ProjectsPage extends LitElement {
     const projectSessions = (this.detail?.sessions ?? [])
       .map(ps => byId.get(ps.session_id))
       .filter(Boolean)
-    const session = this.selectedSession ?? projectSessions[0] ?? null
+    // Remembered session if it belongs to this project, else the first.
+    const session = this._selSession.find(projectSessions) ?? projectSessions[0] ?? null
 
     return html`
       <master-detail list-width="17.5rem" storage-key="md.projects.list">
@@ -114,6 +128,7 @@ class ProjectsPage extends LitElement {
                           ${project?.id === p.id
                             ? 'bg-surface2 border-brand-dim'
                             : 'bg-transparent border-transparent hover:bg-inset'}"
+                   ?data-sel-project=${project?.id === p.id}
                    @click=${() => this.selectProject(p)}>
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
@@ -161,7 +176,8 @@ class ProjectsPage extends LitElement {
                       .session=${s}
                       .maxes=${maxes}
                       .selected=${session?.session_id === s.session_id}
-                      @click=${() => this.selectedSession = s}
+                      ?data-sel-session=${session?.session_id === s.session_id}
+                      @click=${() => this._selSession.remember(s)}
                     ></session-card>
                   `)}
                 </div>

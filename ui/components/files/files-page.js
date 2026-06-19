@@ -2,6 +2,7 @@ import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit
 import { provider } from '../../lib/providers.js'
 import { fileHealth, STATUS_META } from '../../lib/file-health.js'
 import { getJson } from '../../lib/api.js'
+import { SelectionController } from '../../hooks/use-selection.js'
 import { asyncView } from '../../lib/async-view.js'
 import '../layout/master-detail.js'
 import '../ui/search-bar.js'
@@ -55,16 +56,18 @@ function groupTree(files) {
 class FilesPage extends LitElement {
   static properties = {
     files:    { type: Array },
-    selected: { type: Object },
     loading:  { type: Boolean },
     _error:   { state: true },
     _filter:  { state: true },
   }
 
+  // last selected file — persisted so the tab reopens on the same file
+  // (no first-item fallback: an unknown id leaves the tree collapsed + empty state)
+  _sel = new SelectionController(this, 'sel.files', f => f.id)
+
   constructor() {
     super()
     this.files = []
-    this.selected = null
     this.loading = true
     this._error = null
     this._filter = ''
@@ -76,7 +79,6 @@ class FilesPage extends LitElement {
     super.connectedCallback()
     try {
       this.files = await getJson('/files')
-      this.selected = this.files[0] ?? null
     } catch (e) {
       this._error = String(e)
     } finally {
@@ -84,14 +86,19 @@ class FilesPage extends LitElement {
     }
   }
 
-  select(file) { this.selected = file }
+  select(file) { this._sel.remember(file) }
+
+  // Is the selected file inside this type/project/provider subtree?
+  _typeHasSel(tp, sel)   { return sel != null && tp.items.some(f => f.id === sel.id) }
+  _projHasSel(proj, sel) { return proj.types.some(tp => this._typeHasSel(tp, sel)) }
+  _provHasSel(prov, sel) { return prov.projects.some(proj => this._projHasSel(proj, sel)) }
 
   _onSelect(e) {
     const item = e.detail.selection?.[0]
     if (item && item.file) this.select(item.file)
   }
 
-  _leaf(f) {
+  _leaf(f, sel) {
     const health = fileHealth(f)
     const dot = health && health.status
       ? html`<span class="inline-block w-2 h-2 rounded-full flex-shrink-0"
@@ -99,7 +106,7 @@ class FilesPage extends LitElement {
                    title="${health.summary}"></span>`
       : ''
     return html`
-      <sl-tree-item class="leaf" .file=${f} ?selected=${this.selected?.id === f.id}>
+      <sl-tree-item class="leaf" .file=${f} ?selected=${sel?.id === f.id}>
         <span class="flex items-center gap-2 w-full min-w-0">
           <span class="flex-1 truncate text-sm">${f.name}</span>
           ${dot}
@@ -118,6 +125,11 @@ class FilesPage extends LitElement {
       ? this.files.filter(f => (f.name || '').toLowerCase().includes(q))
       : this.files
     const tree = groupTree(matched)
+    // Remembered file, or null on first visit / unknown id → empty state.
+    const selected = this._sel.find(this.files)
+    // Filtering → expand everything so matches show. Otherwise collapse all but
+    // the branch holding the selected file.
+    const expandAll = !!q
 
     return html`
       <style>
@@ -165,7 +177,7 @@ class FilesPage extends LitElement {
           ` : html`
           <sl-tree class="files-tree" selection="leaf" @sl-selection-change=${e => this._onSelect(e)}>
             ${tree.map(prov => html`
-              <sl-tree-item expanded>
+              <sl-tree-item ?expanded=${expandAll || this._provHasSel(prov, selected)}>
                 <span class="flex items-center gap-2 w-full min-w-0">
                   <span class="text-sm font-bold uppercase tracking-widest ${provider(prov.provider).text}">
                     ${prov.provider}
@@ -174,16 +186,16 @@ class FilesPage extends LitElement {
                 </span>
 
                 ${prov.projects.map(proj => html`
-                  <sl-tree-item expanded>
+                  <sl-tree-item ?expanded=${expandAll || this._projHasSel(proj, selected)}>
                     <span class="flex items-center gap-2 w-full min-w-0">
                       <span class="text-sm font-semibold text-fg/80 truncate">${proj.label}</span>
                       <span class="ml-auto text-xs text-dim">${proj.count}</span>
                     </span>
 
                     ${proj.types.map(tp => html`
-                      <sl-tree-item expanded>
+                      <sl-tree-item ?expanded=${expandAll || this._typeHasSel(tp, selected)}>
                         <span class="text-[11px] uppercase tracking-wider text-dim">${tp.label}</span>
-                        ${tp.items.map(f => this._leaf(f))}
+                        ${tp.items.map(f => this._leaf(f, selected))}
                       </sl-tree-item>
                     `)}
                   </sl-tree-item>
@@ -196,7 +208,7 @@ class FilesPage extends LitElement {
         </div>
 
         <div slot="detail">
-          <file-viewer .file=${this.selected}></file-viewer>
+          <file-viewer .file=${selected}></file-viewer>
         </div>
 
       </master-detail>

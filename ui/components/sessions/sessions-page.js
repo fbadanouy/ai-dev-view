@@ -1,5 +1,6 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { SessionsController } from '../../hooks/use-sessions.js'
+import { SelectionController } from '../../hooks/use-selection.js'
 import '../layout/master-detail.js'
 import '../ui/search-bar.js'
 import './session-card.js'
@@ -7,16 +8,16 @@ import './session-detail.js'
 
 class SessionsPage extends LitElement {
   static properties = {
-    selected:   { type: Object },
     _query:     { state: true },
     _provider:  { state: true },
   }
 
   _sessions = new SessionsController(this)
+  _sel = new SelectionController(this, 'sel.sessions', s => s.session_id, { scrollSelector: '[data-sel]' })
 
   createRenderRoot() { return this }
 
-  select(session) { this.selected = session }
+  select(session) { this._sel.remember(session) }
 
   render() {
     const { sessions, maxes, loading, error } = this._sessions
@@ -41,7 +42,8 @@ class SessionsPage extends LitElement {
       .filter(s => !q || (s.title ?? '').toLowerCase().includes(q)
                       || (s.ticket ?? '').toLowerCase().includes(q))
     const providers = [...new Set(sessions.map(s => s.provider).filter(Boolean))].sort()
-    const selected = this.selected ?? filtered[0] ?? null
+    // Remembered session if it's still in the filtered list, else the first.
+    const selected = this._sel.find(filtered) ?? filtered[0] ?? null
 
     return html`
       <master-detail list-width="20rem">
@@ -59,7 +61,7 @@ class SessionsPage extends LitElement {
             ${providers.length > 1 ? html`
               <select
                 .value=${prov}
-                @change=${e => { this._provider = e.target.value; this.selected = null }}
+                @change=${e => { this._provider = e.target.value; this._sel.remember(null) }}
                 class="text-xs bg-inset border border-edge-strong text-muted rounded px-1.5 py-0.5 cursor-pointer"
               >
                 <option value="all">all providers</option>
@@ -73,6 +75,7 @@ class SessionsPage extends LitElement {
                 .session=${s}
                 .maxes=${maxes}
                 .selected=${selected?.session_id === s.session_id}
+                ?data-sel=${selected?.session_id === s.session_id}
                 @click=${() => this.select(s)}
               ></session-card>
             `)}

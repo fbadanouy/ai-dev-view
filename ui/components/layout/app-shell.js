@@ -1,5 +1,6 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { postJson } from '../../lib/api.js'
+import { PersistedController } from '../../hooks/use-persisted.js'
 import './app-nav.js'
 import '../projects/projects-page.js'
 import '../sessions/sessions-page.js'
@@ -15,9 +16,8 @@ import '../mcps/mcps-page.js'
 // One entry per [data-theme] block in ui/theme.css ('default' = :root).
 const THEMES = ['default', 'cyber-hearth', 'dusk-protocol', 'parchment-sepia', 'nordic-daylight', 'hollywood-os', 'acid-moss', 'sakura-cli']
 
-// localStorage key for the last successful sync (epoch ms); sessionStorage key
-// marks the one reload a sync triggers, so auto-sync-on-open doesn't loop.
-const LAST_SYNC_KEY = 'lastSync'
+// sessionStorage flag marking the one reload a sync triggers, so
+// auto-sync-on-open doesn't loop.
 const JUST_SYNCED_KEY = 'justSynced'
 
 function timeAgo(ms) {
@@ -33,19 +33,19 @@ function timeAgo(ms) {
 
 class AppShell extends LitElement {
   static properties = {
-    page:      { type: String },
-    _theme:    { state: true },
-    _sync:     { state: true },   // null | 'busy' | 'error'
-    _lastSync: { state: true },   // epoch ms | null
+    page:    { type: String },
+    _theme:  { state: true },
+    _sync:   { state: true },   // null | 'busy' | 'error'
   }
+
+  // last successful sync, epoch ms | null — persisted across reloads
+  _lastSync = new PersistedController(this, 'lastSync', null)
 
   constructor() {
     super()
     this.page = 'sessions'
     this._theme = localStorage.getItem('theme') ?? 'default'
     this._sync = null
-    const stored = localStorage.getItem(LAST_SYNC_KEY)
-    this._lastSync = stored ? Number(stored) : null
   }
 
   createRenderRoot() { return this }
@@ -86,7 +86,7 @@ class AppShell extends LitElement {
     try {
       const data = await postJson('/ingest')
       if (!data.success) throw new Error(data.error ?? 'ingest failed')
-      localStorage.setItem(LAST_SYNC_KEY, String(Date.now()))
+      this._lastSync.value = Date.now()
       sessionStorage.setItem(JUST_SYNCED_KEY, '1')   // skip auto-sync on the reload below
       location.reload()   // simplest full data refresh — every page refetches
     } catch (e) {
@@ -104,11 +104,11 @@ class AppShell extends LitElement {
           <div class="flex items-center justify-between mb-4">
             <h1 class="font-mono text-2xl text-brand tracking-tight">ai-dev-view</h1>
             <div class="flex items-center gap-4">
-            ${this._lastSync
+            ${this._lastSync.value
               ? html`<span
-                  class="text-xs text-dim font-mono ${Date.now() - this._lastSync < 3_600_000 ? 'opacity-50' : ''}"
-                  title="Last synced ${new Date(this._lastSync).toLocaleString()}">
-                  synced ${timeAgo(this._lastSync)}
+                  class="text-xs text-dim font-mono ${Date.now() - this._lastSync.value < 3_600_000 ? 'opacity-50' : ''}"
+                  title="Last synced ${new Date(this._lastSync.value).toLocaleString()}">
+                  synced ${timeAgo(this._lastSync.value)}
                 </span>`
               : ''}
             <button

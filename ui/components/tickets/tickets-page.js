@@ -1,6 +1,7 @@
 import { LitElement, html } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js'
 import { TicketsController } from '../../hooks/use-tickets.js'
 import { SessionsController } from '../../hooks/use-sessions.js'
+import { SelectionController } from '../../hooks/use-selection.js'
 import { timeAgo } from '../../lib/format.js'
 import '../layout/master-detail.js'
 import '../ui/search-bar.js'
@@ -12,14 +13,14 @@ import '../sessions/session-detail.js'
    session-detail exactly as the sessions page does. */
 class TicketsPage extends LitElement {
   static properties = {
-    selected:        { type: Object },   // selected ticket
-    selectedSession: { type: Object },
     _query:          { state: true },
     _pinned:         { state: true },    // Set of pinned ticket keys (localStorage-backed)
   }
 
   _tickets  = new TicketsController(this)
   _sessions = new SessionsController(this)
+  _sel        = new SelectionController(this, 'sel.tickets', t => t.ticket, { scrollSelector: '[data-sel-ticket]' })
+  _selSession = new SelectionController(this, 'sel.tickets.session', s => s.session_id, { scrollSelector: '[data-sel-session]' })
 
   constructor() {
     super()
@@ -29,10 +30,7 @@ class TicketsPage extends LitElement {
 
   createRenderRoot() { return this }
 
-  selectTicket(t) {
-    this.selected = t
-    this.selectedSession = null
-  }
+  selectTicket(t) { this._sel.remember(t) }
 
   _togglePin(key, e) {
     e.stopPropagation()   // don't also select the ticket
@@ -64,13 +62,15 @@ class TicketsPage extends LitElement {
     const pinned = this._pinned
     // Pinned float to the top; sort is stable so recency order holds within each group.
     const ordered = [...filtered].sort((a, b) => (pinned.has(b.ticket) ? 1 : 0) - (pinned.has(a.ticket) ? 1 : 0))
-    const ticket = this.selected ?? ordered[0] ?? null
+    // Remembered ticket if it's still in the list, else the first.
+    const ticket = this._sel.find(ordered) ?? ordered[0] ?? null
     const byId = new Map(sessions.map(s => [s.session_id, s]))
     // ticket.sessions carries link/mentions; the full session objects render the cards
     const ticketSessions = (ticket?.sessions ?? [])
       .map(ts => ({ ...byId.get(ts.session_id), link: ts.link, mentions: ts.mentions }))
       .filter(s => s.session_id)
-    const session = this.selectedSession ?? ticketSessions[0] ?? null
+    // Remembered session if it belongs to this ticket, else the first.
+    const session = this._selSession.find(ticketSessions) ?? ticketSessions[0] ?? null
 
     return html`
       <master-detail list-width="15rem">
@@ -94,6 +94,7 @@ class TicketsPage extends LitElement {
                           ${ticket?.ticket === t.ticket
                             ? 'bg-surface2 border-brand-dim'
                             : 'bg-transparent border-transparent hover:bg-inset'}"
+                   ?data-sel-ticket=${ticket?.ticket === t.ticket}
                    @click=${() => this.selectTicket(t)}>
                 <div class="flex items-start justify-between gap-2">
                   <div class="min-w-0">
@@ -142,7 +143,8 @@ class TicketsPage extends LitElement {
                         .session=${s}
                         .maxes=${maxes}
                         .selected=${session?.session_id === s.session_id}
-                        @click=${() => this.selectedSession = s}
+                        ?data-sel-session=${session?.session_id === s.session_id}
+                        @click=${() => this._selSession.remember(s)}
                       ></session-card>
                     </div>
                   `)}
